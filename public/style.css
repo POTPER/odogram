@@ -4,6 +4,12 @@
   box-sizing: border-box;
 }
 
+:root {
+  --split: 50;
+  --sidebar-width: 220px;
+  --toolbar-height: 40px;
+}
+
 html,
 body {
   margin: 0;
@@ -12,6 +18,15 @@ body {
   color: #cccccc;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
+}
+
+button:focus-visible,
+select:focus-visible,
+.pane-resizer:focus-visible,
+.mobile-tab:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid #007acc;
+  outline-offset: 1px;
 }
 
 .app {
@@ -24,7 +39,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  min-height: var(--toolbar-height);
+  padding: 4px 12px;
   background: #252526;
   border-bottom: 1px solid #3c3c3c;
   flex-shrink: 0;
@@ -33,6 +49,43 @@ body {
 
 .toolbar .spacer {
   flex: 1;
+  min-width: 8px;
+}
+
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 0;
+  background: #3c3c3c;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  appearance: none;
+  border: 1px solid #3c3c3c;
+  background: #2d2d2d;
+  color: #cccccc;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.icon-btn:hover {
+  background: #3c3c3c;
+  border-color: #007acc;
 }
 
 .toolbar button,
@@ -44,11 +97,12 @@ body {
   padding: 6px 12px;
   font: inherit;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .toolbar button:hover,
@@ -88,7 +142,8 @@ body {
   font: inherit;
   font-size: 13px;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .layout-select-wrap select:hover {
@@ -126,7 +181,7 @@ body {
   padding: 12px 14px;
   background: #252526;
   border: 1px solid #007acc;
-  border-radius: 2px;
+  border-radius: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   font-size: 13px;
   line-height: 1.5;
@@ -179,7 +234,7 @@ body {
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
   text-decoration: none;
 }
 
@@ -205,7 +260,7 @@ body {
 .share-url {
   font-size: 12px;
   color: #858585;
-  max-width: 320px;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -215,19 +270,38 @@ body {
   display: flex;
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: var(--toolbar-height) 0 22px 0;
+  z-index: 150;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.sidebar-backdrop[hidden] {
+  display: none;
 }
 
 .sidebar {
-  width: 220px;
+  width: 0;
+  overflow: hidden;
   background: #252526;
-  border-right: 1px solid #3c3c3c;
+  border-right: none;
   display: none;
   flex-direction: column;
   flex-shrink: 0;
+  transition: width 0.2s ease;
 }
 
 .sidebar.visible {
   display: flex;
+}
+
+body.sidebar-open .sidebar.visible {
+  width: var(--sidebar-width);
+  border-right: 1px solid #3c3c3c;
 }
 
 .sidebar h3 {
@@ -239,6 +313,7 @@ body {
   letter-spacing: 0.05em;
   color: #858585;
   border-bottom: 1px solid #3c3c3c;
+  white-space: nowrap;
 }
 
 .diagram-list {
@@ -247,6 +322,7 @@ body {
   padding: 4px 0;
   overflow-y: auto;
   flex: 1;
+  min-width: var(--sidebar-width);
 }
 
 .diagram-list li button {
@@ -266,22 +342,101 @@ body {
   background: #094771;
 }
 
-.editor-pane {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.workbench-area {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+}
+
+.mobile-tabs {
+  display: none;
+  flex-shrink: 0;
+  gap: 0;
+  padding: 0 8px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.mobile-tab {
+  appearance: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #858585;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.mobile-tab:hover {
+  color: #cccccc;
+}
+
+.mobile-tab.active {
+  color: #cccccc;
+  border-bottom-color: #007acc;
+}
+
+.workbench {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .pane {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+}
+
+.pane-source {
+  flex: 0 0 calc(var(--split) * 1%);
   border-right: 1px solid #3c3c3c;
 }
 
-.pane:last-child {
-  border-right: none;
+.pane-preview {
+  flex: 1;
+}
+
+.pane-resizer {
+  flex-shrink: 0;
+  width: 4px;
+  margin: 0 -2px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  transition: background 0.15s;
+}
+
+.pane-resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 -2px;
+}
+
+.pane-resizer:hover,
+.pane-resizer.is-active,
+.pane-resizer:focus-visible {
+  background: #007acc;
+}
+
+body.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.is-resizing * {
+  cursor: col-resize !important;
 }
 
 .pane-header {
@@ -351,7 +506,8 @@ body {
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .preview-controls button:hover:not(:disabled) {
@@ -406,8 +562,8 @@ body {
 .status {
   flex-shrink: 0;
   padding: 4px 12px;
-  background: #007acc;
-  color: #fff;
+  background: #252526;
+  color: #858585;
   font-size: 12px;
   border-top: 1px solid #3c3c3c;
   min-height: 22px;
@@ -416,6 +572,8 @@ body {
 
 .status.visible {
   display: block;
+  background: #007acc;
+  color: #fff;
 }
 
 .status.error {
@@ -424,12 +582,53 @@ body {
 }
 
 @media (max-width: 768px) {
-  .editor-pane {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
+  .toolbar-divider {
+    display: none;
   }
 
-  .sidebar {
-    display: none !important;
+  .toolbar-secondary .share-url {
+    display: none;
+  }
+
+  .mobile-tabs {
+    display: flex;
+  }
+
+  .pane-resizer {
+    display: none;
+  }
+
+  .workbench {
+    position: relative;
+  }
+
+  .pane-source,
+  .pane-preview {
+    flex: 1;
+    border-right: none;
+  }
+
+  body.tab-source .pane-preview {
+    display: none;
+  }
+
+  body.tab-preview .pane-source {
+    display: none;
+  }
+
+  .sidebar.visible {
+    position: fixed;
+    top: var(--toolbar-height);
+    left: 0;
+    bottom: 22px;
+    z-index: 200;
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    border-right: 1px solid #3c3c3c;
+  }
+
+  body.sidebar-open .sidebar.visible {
+    transform: translateX(0);
   }
 }

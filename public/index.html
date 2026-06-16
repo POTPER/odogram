@@ -23,60 +23,85 @@
   }
   </script>
 </head>
-<body>
+<body class="tab-source">
   <div class="app">
     <div class="toolbar">
-      <div class="save-group">
-        <button id="btn-save" class="primary" disabled title="Save to GitHub">Save</button>
-        <button id="btn-save-help" type="button" title="保存位置说明" aria-label="Save location help">?</button>
-        <div id="save-help-popover" class="save-help-popover" hidden>
-          <div id="save-help-content"></div>
+      <button id="btn-sidebar-toggle" type="button" class="icon-btn" hidden aria-label="Toggle diagrams">☰</button>
+
+      <div class="toolbar-group toolbar-primary">
+        <div class="save-group">
+          <button id="btn-save" class="primary" disabled title="Save to GitHub">Save</button>
+          <button id="btn-save-help" type="button" title="保存位置说明" aria-label="Save location help">?</button>
+          <div id="save-help-popover" class="save-help-popover" hidden>
+            <div id="save-help-content"></div>
+          </div>
         </div>
+        <label class="layout-select-wrap">
+          Layout
+          <select id="layout-select" title="Diagram layout">
+            <option value="dagre">Default</option>
+            <option value="elk">Orthogonal</option>
+          </select>
+        </label>
       </div>
-      <label class="layout-select-wrap">
-        Layout
-        <select id="layout-select" title="Diagram layout">
-          <option value="dagre">Default</option>
-          <option value="elk">Orthogonal</option>
-        </select>
-      </label>
-      <button id="btn-copy" title="Copy source">Copy</button>
-      <button id="btn-download" title="Download SVG">Download SVG</button>
-      <button id="btn-example" title="Load example">Load Example</button>
-      <span id="share-url" class="share-url"></span>
+
+      <div class="toolbar-divider" aria-hidden="true"></div>
+
+      <div class="toolbar-group toolbar-secondary">
+        <button id="btn-copy" title="Copy source">Copy</button>
+        <button id="btn-download" title="Download SVG">Download SVG</button>
+        <button id="btn-example" title="Load example">Load Example</button>
+        <span id="share-url" class="share-url"></span>
+      </div>
+
       <span class="spacer"></span>
-      <div id="user-info" class="user-info" hidden>
-        <img id="user-avatar" alt="" width="24" height="24">
-        <span id="user-name"></span>
-        <button id="btn-logout">Logout</button>
+
+      <div class="toolbar-group toolbar-account">
+        <div id="user-info" class="user-info" hidden>
+          <img id="user-avatar" alt="" width="24" height="24">
+          <span id="user-name"></span>
+          <button id="btn-logout">Logout</button>
+        </div>
+        <button id="btn-login">Login with GitHub</button>
       </div>
-      <button id="btn-login">Login with GitHub</button>
     </div>
 
     <div class="main">
+      <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
       <aside id="sidebar" class="sidebar">
         <h3>My Diagrams</h3>
         <ul id="diagram-list" class="diagram-list"></ul>
       </aside>
 
-      <div class="editor-pane">
-        <div class="pane">
-          <div class="pane-header">Source</div>
-          <div id="editor-root" class="editor-root"></div>
+      <div class="workbench-area">
+        <div class="mobile-tabs" role="tablist" aria-label="Editor panels">
+          <button id="tab-source" type="button" class="mobile-tab active" role="tab" aria-selected="true">Source</button>
+          <button id="tab-preview" type="button" class="mobile-tab" role="tab" aria-selected="false">Preview</button>
         </div>
-        <div class="pane">
-          <div class="pane-header preview-header">
-            <span>Preview</span>
-            <div class="preview-controls">
-              <button type="button" id="btn-zoom-out" title="Zoom out" disabled>−</button>
-              <span id="zoom-label" class="zoom-label">100%</span>
-              <button type="button" id="btn-zoom-in" title="Zoom in" disabled>+</button>
-              <button type="button" id="btn-zoom-fit" title="Fit to panel" disabled>Fit</button>
-              <button type="button" id="btn-zoom-reset" title="100%" disabled>1:1</button>
-            </div>
+
+        <div class="workbench">
+          <div class="pane pane-source">
+            <div class="pane-header">Source</div>
+            <div id="editor-root" class="editor-root"></div>
           </div>
-          <div id="preview" class="preview-viewport">
-            <div id="preview-canvas" class="preview-canvas"></div>
+
+          <div id="pane-resizer" class="pane-resizer" role="separator" tabindex="0" aria-label="Resize panes" aria-orientation="vertical"></div>
+
+          <div class="pane pane-preview">
+            <div class="pane-header preview-header">
+              <span>Preview</span>
+              <div class="preview-controls">
+                <button type="button" id="btn-zoom-out" title="Zoom out" disabled>−</button>
+                <span id="zoom-label" class="zoom-label">100%</span>
+                <button type="button" id="btn-zoom-in" title="Zoom in" disabled>+</button>
+                <button type="button" id="btn-zoom-fit" title="Fit to panel" disabled>Fit</button>
+                <button type="button" id="btn-zoom-reset" title="100%" disabled>1:1</button>
+              </div>
+            </div>
+            <div id="preview" class="preview-viewport">
+              <div id="preview-canvas" class="preview-canvas"></div>
+            </div>
           </div>
         </div>
       </div>

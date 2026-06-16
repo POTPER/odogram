@@ -3,6 +3,7 @@ import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.
 import { cursorDarkTheme } from './theme.js';
 import { createMermaidEditor } from './editor.js';
 import { applyLayoutFrontmatter, LAYOUT_MODES, parseLayoutFromCode } from './layout.js';
+import { initLayoutUI } from './layout-ui.js';
 
 mermaid.registerLayoutLoaders(elkLayouts);
 
@@ -42,6 +43,7 @@ let renderSeq = 0;
 let user = null;
 let editor = null;
 let layoutSyncing = false;
+let layoutUI = null;
 
 const PREVIEW_PADDING = 24;
 const PREVIEW_MIN_SCALE = 0.1;
@@ -417,6 +419,7 @@ function updateAuthUI() {
     sidebar.classList.remove('visible');
     setSaveHelpOpen(false);
   }
+  layoutUI?.syncSidebarToggle();
   updateSaveHelpContent();
 }
 
@@ -569,7 +572,12 @@ btnLogout.addEventListener('click', () => {
 
 async function init() {
   editor = createMermaidEditor(editorRoot, { onChange: scheduleRender });
+  layoutUI = initLayoutUI();
   initPreviewViewport();
+
+  window.addEventListener('odogram:preview-resize', () => {
+    if (getPreviewSvg()) fitPreview();
+  });
 
   const params = new URLSearchParams(window.location.search);
   const error = params.get('error');
