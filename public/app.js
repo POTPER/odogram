@@ -29,7 +29,11 @@ const btnDownload = document.getElementById('btn-download');
 const btnExample = document.getElementById('btn-example');
 const btnLogin = document.getElementById('btn-login');
 const btnLogout = document.getElementById('btn-logout');
-const userInfo = document.getElementById('user-info');
+const userMenu = document.getElementById('user-menu');
+const btnUserToggle = document.getElementById('btn-user-toggle');
+const userMenuPopover = document.getElementById('user-menu-popover');
+const btnMenuDiagrams = document.getElementById('btn-menu-diagrams');
+const btnNewDiagram = document.getElementById('btn-new-diagram');
 const userAvatar = document.getElementById('user-avatar');
 const userName = document.getElementById('user-name');
 
@@ -37,6 +41,7 @@ let currentId = null;
 let lastShareUrl = '';
 let lastGithubUrl = '';
 let saveHelpOpen = false;
+let userMenuOpen = false;
 let lastSvg = '';
 let renderTimer = null;
 let renderSeq = 0;
@@ -391,11 +396,27 @@ function updateSaveHelpContent() {
   }
 }
 
+function setUserMenuOpen(open) {
+  userMenuOpen = open;
+  userMenuPopover.hidden = !open;
+  btnUserToggle.classList.toggle('active', open);
+  btnUserToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleUserMenu(event) {
+  event.stopPropagation();
+  setUserMenuOpen(!userMenuOpen);
+  if (userMenuOpen) setSaveHelpOpen(false);
+}
+
 function setSaveHelpOpen(open) {
   saveHelpOpen = open;
   saveHelpPopover.hidden = !open;
   btnSaveHelp.classList.toggle('active', open);
-  if (open) updateSaveHelpContent();
+  if (open) {
+    updateSaveHelpContent();
+    setUserMenuOpen(false);
+  }
 }
 
 function toggleSaveHelp(event) {
@@ -406,7 +427,7 @@ function toggleSaveHelp(event) {
 function updateAuthUI() {
   if (user?.login) {
     btnLogin.hidden = true;
-    userInfo.hidden = false;
+    userMenu.hidden = false;
     btnSave.disabled = false;
     sidebar.classList.add('visible');
     userAvatar.src = user.avatar;
@@ -414,13 +435,28 @@ function updateAuthUI() {
     userName.textContent = user.username;
   } else {
     btnLogin.hidden = false;
-    userInfo.hidden = true;
+    userMenu.hidden = true;
     btnSave.disabled = true;
     sidebar.classList.remove('visible');
     setSaveHelpOpen(false);
+    setUserMenuOpen(false);
   }
   layoutUI?.syncSidebarToggle();
   updateSaveHelpContent();
+}
+
+function newDiagram() {
+  editor.setValue('flowchart LR\n  A[New diagram] --> B[Edit me]');
+  syncLayoutSelectFromCode();
+  currentId = null;
+  lastShareUrl = '';
+  lastGithubUrl = '';
+  setQueryId(null);
+  shareUrlEl.textContent = '';
+  scheduleRender();
+  updateSaveHelpContent();
+  diagramList.querySelectorAll('button').forEach((btn) => btn.classList.remove('active'));
+  showStatus('New diagram');
 }
 
 async function loadDiagramList() {
@@ -438,7 +474,7 @@ async function loadDiagramList() {
   for (const item of diagrams) {
     const li = document.createElement('li');
     const btn = document.createElement('button');
-    btn.textContent = item.id;
+    btn.innerHTML = `<span class="diagram-item-icon" aria-hidden="true">◇</span><span class="diagram-item-label">${escapeHtml(item.id)}</span>`;
     btn.classList.toggle('active', item.id === currentId);
     btn.addEventListener('click', () => loadDiagram(item.id));
     li.appendChild(btn);
@@ -556,9 +592,17 @@ function downloadSvg() {
 btnSave.addEventListener('click', saveDiagram);
 btnSaveHelp.addEventListener('click', toggleSaveHelp);
 saveHelpPopover.addEventListener('click', (event) => event.stopPropagation());
+userMenuPopover.addEventListener('click', (event) => event.stopPropagation());
 document.addEventListener('click', () => {
   if (saveHelpOpen) setSaveHelpOpen(false);
+  if (userMenuOpen) setUserMenuOpen(false);
 });
+btnUserToggle.addEventListener('click', toggleUserMenu);
+btnMenuDiagrams.addEventListener('click', () => {
+  setUserMenuOpen(false);
+  layoutUI?.openSidebar();
+});
+btnNewDiagram.addEventListener('click', newDiagram);
 btnCopy.addEventListener('click', copySource);
 layoutSelect.addEventListener('change', handleLayoutChange);
 btnDownload.addEventListener('click', downloadSvg);

@@ -157,5 +157,5 @@ export function initLayoutUI() {
 
   syncSidebarToggle();
 
-  return { syncSidebarToggle };
+  return { syncSidebarToggle, openSidebar: () => setSidebarOpen(true) };
 }
