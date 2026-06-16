@@ -5,7 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>odogram — Mermaid Editor</title>
   <link rel="stylesheet" href="/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@codemirror/state": "https://cdn.jsdelivr.net/npm/@codemirror/state@6.5.2/+esm",
+      "@codemirror/view": "https://cdn.jsdelivr.net/npm/@codemirror/view@6.38.6/+esm",
+      "@codemirror/commands": "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.8.1/+esm",
+      "@codemirror/language": "https://cdn.jsdelivr.net/npm/@codemirror/language@6.11.3/+esm",
+      "@lezer/highlight": "https://cdn.jsdelivr.net/npm/@lezer/highlight@1.2.3/+esm",
+      "@lezer/common": "https://cdn.jsdelivr.net/npm/@lezer/common@1.2.3/+esm",
+      "@lezer/lr": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.4.2/+esm",
+      "@marijn/find-cluster-break": "https://cdn.jsdelivr.net/npm/@marijn/find-cluster-break@1.0.2/+esm",
+      "crelt": "https://cdn.jsdelivr.net/npm/crelt@1.0.6/+esm",
+      "w3c-keyname": "https://cdn.jsdelivr.net/npm/w3c-keyname@2.2.8/+esm",
+      "style-mod": "https://cdn.jsdelivr.net/npm/style-mod@4.1.2/+esm"
+    }
+  }
+  </script>
 </head>
 <body>
   <div class="app">
@@ -17,6 +33,13 @@
           <div id="save-help-content"></div>
         </div>
       </div>
+      <label class="layout-select-wrap">
+        Layout
+        <select id="layout-select" title="Diagram layout">
+          <option value="dagre">Default</option>
+          <option value="elk">Orthogonal</option>
+        </select>
+      </label>
       <button id="btn-copy" title="Copy source">Copy</button>
       <button id="btn-download" title="Download SVG">Download SVG</button>
       <button id="btn-example" title="Load example">Load Example</button>
@@ -30,8 +53,6 @@
       <button id="btn-login">Login with GitHub</button>
     </div>
 
-    <div id="status" class="status"></div>
-
     <div class="main">
       <aside id="sidebar" class="sidebar">
         <h3>My Diagrams</h3>
@@ -41,14 +62,27 @@
       <div class="editor-pane">
         <div class="pane">
           <div class="pane-header">Source</div>
-          <textarea id="editor" spellcheck="false" placeholder="Write Mermaid syntax here..."></textarea>
+          <div id="editor-root" class="editor-root"></div>
         </div>
         <div class="pane">
-          <div class="pane-header">Preview</div>
-          <div id="preview"></div>
+          <div class="pane-header preview-header">
+            <span>Preview</span>
+            <div class="preview-controls">
+              <button type="button" id="btn-zoom-out" title="Zoom out" disabled>−</button>
+              <span id="zoom-label" class="zoom-label">100%</span>
+              <button type="button" id="btn-zoom-in" title="Zoom in" disabled>+</button>
+              <button type="button" id="btn-zoom-fit" title="Fit to panel" disabled>Fit</button>
+              <button type="button" id="btn-zoom-reset" title="100%" disabled>1:1</button>
+            </div>
+          </div>
+          <div id="preview" class="preview-viewport">
+            <div id="preview-canvas" class="preview-canvas"></div>
+          </div>
         </div>
       </div>
     </div>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
   </div>
 
   <script type="module" src="/app.js"></script>

@@ -36,7 +36,6 @@ function viewPageHtml({ username, id, code, origin }) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${safeId} — odogram</title>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -78,7 +77,11 @@ function viewPageHtml({ username, id, code, origin }) {
   </header>
   <div id="preview"></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
-  <script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.1/dist/mermaid-layout-elk.esm.min.mjs';
+
+    mermaid.registerLayoutLoaders(elkLayouts);
     mermaid.initialize({
       theme: 'base',
       startOnLoad: false,
@@ -96,17 +99,16 @@ function viewPageHtml({ username, id, code, origin }) {
       },
     });
 
-    (async function () {
-      const preview = document.getElementById('preview');
-      const code = JSON.parse(document.getElementById('diagram-data').textContent);
-      const renderId = 'view-diagram-' + Date.now();
-      try {
-        const { svg } = await mermaid.render(renderId, code);
-        preview.innerHTML = svg;
-      } catch (err) {
-        preview.innerHTML = '<div class="error">' + String(err.message || err) + '</div>';
-      }
-    })();
+    const preview = document.getElementById('preview');
+    const code = JSON.parse(document.getElementById('diagram-data').textContent);
+    const renderId = 'view-diagram-' + Date.now();
+
+    try {
+      const { svg } = await mermaid.render(renderId, code);
+      preview.innerHTML = svg;
+    } catch (err) {
+      preview.innerHTML = '<div class="error">' + String(err.message || err) + '</div>';
+    }
   </script>
 </body>
 </html>`;
