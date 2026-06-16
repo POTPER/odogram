@@ -121,6 +121,50 @@ export async function loadDiagram(token, username, id) {
   return null;
 }
 
+export async function deleteDiagram(token, username, id) {
+  const meta = await getFileMeta(token, username, id);
+  if (!meta) {
+    throw new Error('Not found');
+  }
+
+  const path = filePath(id);
+  const res = await fetch(
+    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${path}`,
+    {
+      method: 'DELETE',
+      headers: {
+        ...githubHeaders(token),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: `Delete diagram ${id}`,
+        sha: meta.sha,
+        branch: BRANCH,
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed to delete diagram: ${res.status} ${err}`);
+  }
+}
+
+export async function renameDiagram(token, username, oldId, newId) {
+  const existing = await getFileMeta(token, username, newId);
+  if (existing) {
+    throw new Error('Diagram id already exists');
+  }
+
+  const code = await loadDiagram(token, username, oldId);
+  if (code === null) {
+    throw new Error('Not found');
+  }
+
+  await saveDiagram(token, username, newId, code);
+  await deleteDiagram(token, username, oldId);
+}
+
 export async function listDiagrams(token, username) {
   await ensureRepo(token, username);
 

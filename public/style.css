@@ -34,6 +34,18 @@
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
+[hidden] {
+  display: none !important;
+}
+
+body.is-logged-in .btn-login {
+  display: none !important;
+}
+
+body.is-logged-out .user-menu {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -534,11 +546,18 @@ body.sidebar-open .sidebar.visible {
   min-width: var(--sidebar-width);
 }
 
-.diagram-list li button {
+.diagram-list-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.diagram-list-item .diagram-item-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   padding: 8px 10px;
   border: none;
@@ -549,6 +568,41 @@ body.sidebar-open .sidebar.visible {
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: background 0.15s;
+}
+
+.diagram-rename-btn {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.diagram-list-item:hover .diagram-rename-btn {
+  opacity: 1;
+}
+
+.diagram-rename-btn:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.diagram-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
 }
 
 .diagram-item-icon {
@@ -563,16 +617,16 @@ body.sidebar-open .sidebar.visible {
   white-space: nowrap;
 }
 
-.diagram-list li button:hover {
+.diagram-list-item .diagram-item-btn:hover {
   background: var(--surface-hover);
 }
 
-.diagram-list li button.active {
+.diagram-list-item .diagram-item-btn.active {
   background: var(--active-bg);
   color: #fff;
 }
 
-.diagram-list li button.active .diagram-item-icon {
+.diagram-list-item .diagram-item-btn.active .diagram-item-icon {
   color: var(--accent);
 }
 
@@ -692,27 +746,6 @@ body.is-resizing * {
 
 .editor-root .cm-editor {
   height: 100%;
-}
-
-.cm-editor .cm-keyword {
-  color: #569cd6;
-}
-
-.cm-editor .cm-lineComment {
-  color: #6a9955;
-  font-style: italic;
-}
-
-.cm-editor .cm-string {
-  color: #ce9178;
-}
-
-.cm-editor .cm-operator {
-  color: #d4d4d4;
-}
-
-.cm-editor .cm-meta {
-  color: var(--text-muted);
 }
 
 .preview-header {
@@ -904,6 +937,10 @@ body.is-resizing * {
 
   body.sidebar-open .sidebar.visible {
     transform: translateX(0);
+  }
+
+  .diagram-rename-btn {
+    opacity: 1;
   }
 }
 

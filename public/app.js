@@ -1,5 +1,5 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.1/dist/mermaid-layout-elk.esm.min.mjs';
+import elkLayouts from '/vendor/layout-elk/mermaid-layout-elk.esm.min.mjs';
 import { cursorDarkTheme } from './theme.js';
 import { createMermaidEditor } from './editor.js';
 import { applyLayoutFrontmatter, LAYOUT_MODES, parseLayoutFromCode } from './layout.js';
@@ -53,6 +53,7 @@ let layoutUI = null;
 const PREVIEW_PADDING = 24;
 const PREVIEW_MIN_SCALE = 0.1;
 const PREVIEW_MAX_SCALE = 5;
+const ID_PATTERN = /^[a-zA-Z0-9_-]{3,64}$/;
 
 let previewScale = 1;
 let previewPanX = 0;
@@ -425,6 +426,9 @@ function toggleSaveHelp(event) {
 }
 
 function updateAuthUI() {
+  document.body.classList.toggle('is-logged-in', !!user?.login);
+  document.body.classList.toggle('is-logged-out', !user?.login);
+
   if (user?.login) {
     btnLogin.hidden = true;
     userMenu.hidden = false;
@@ -455,8 +459,99 @@ function newDiagram() {
   shareUrlEl.textContent = '';
   scheduleRender();
   updateSaveHelpContent();
-  diagramList.querySelectorAll('button').forEach((btn) => btn.classList.remove('active'));
+  diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
   showStatus('New diagram');
+}
+
+let renameEditLi = null;
+
+function cancelRenameEdit() {
+  if (!renameEditLi) return;
+  const oldId = renameEditLi.dataset.diagramId;
+  const loadBtn = renameEditLi.querySelector('.diagram-item-btn');
+  const renameBtn = renameEditLi.querySelector('.diagram-rename-btn');
+  const input = renameEditLi.querySelector('.diagram-rename-input');
+  if (input) {
+    const label = document.createElement('span');
+    label.className = 'diagram-item-label';
+    label.textContent = oldId;
+    input.replaceWith(label);
+  }
+  if (renameBtn) renameBtn.hidden = false;
+  renameEditLi = null;
+}
+
+function startRenameEdit(li, oldId) {
+  if (renameEditLi && renameEditLi !== li) cancelRenameEdit();
+
+  const loadBtn = li.querySelector('.diagram-item-btn');
+  const label = loadBtn.querySelector('.diagram-item-label');
+  const renameBtn = li.querySelector('.diagram-rename-btn');
+  if (!label || !renameBtn) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'diagram-rename-input';
+  input.value = oldId;
+  label.replaceWith(input);
+  renameBtn.hidden = true;
+  renameEditLi = li;
+  li.dataset.diagramId = oldId;
+  input.focus();
+  input.select();
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      renameDiagram(oldId, input.value.trim());
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelRenameEdit();
+    }
+  });
+}
+
+async function renameDiagram(oldId, newId) {
+  if (oldId === newId) {
+    cancelRenameEdit();
+    showStatus('No change', true);
+    return;
+  }
+
+  if (!ID_PATTERN.test(newId)) {
+    showStatus('Invalid id format', true);
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldId, newId }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Rename failed');
+    }
+
+    renameEditLi = null;
+
+    if (oldId === currentId) {
+      currentId = newId;
+      setQueryId(newId);
+      lastShareUrl = data.shareUrl || '';
+      lastGithubUrl = data.githubUrl || getGitHubFileUrl(user.username, newId);
+      shareUrlEl.textContent = lastShareUrl;
+      shareUrlEl.title = lastShareUrl;
+      updateSaveHelpContent();
+    }
+
+    await loadDiagramList();
+    showStatus(`Renamed to ${newId}. Old share links no longer work.`);
+  } catch (err) {
+    showStatus(err.message || 'Rename failed', true);
+  }
 }
 
 async function loadDiagramList() {
@@ -473,11 +568,28 @@ async function loadDiagramList() {
 
   for (const item of diagrams) {
     const li = document.createElement('li');
+    li.className = 'diagram-list-item';
+
     const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'diagram-item-btn';
     btn.innerHTML = `<span class="diagram-item-icon" aria-hidden="true">◇</span><span class="diagram-item-label">${escapeHtml(item.id)}</span>`;
     btn.classList.toggle('active', item.id === currentId);
     btn.addEventListener('click', () => loadDiagram(item.id));
+
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'diagram-rename-btn';
+    renameBtn.title = 'Rename';
+    renameBtn.setAttribute('aria-label', 'Rename');
+    renameBtn.textContent = '✎';
+    renameBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      startRenameEdit(li, item.id);
+    });
+
     li.appendChild(btn);
+    li.appendChild(renameBtn);
     diagramList.appendChild(li);
   }
 }

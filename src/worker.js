@@ -13,6 +13,7 @@ import {
   getShareUrl,
   listDiagrams,
   loadDiagram,
+  renameDiagram,
   saveDiagram,
 } from './github.js';
 
@@ -79,7 +80,7 @@ function viewPageHtml({ username, id, code, origin }) {
   <script id="diagram-data" type="application/json">${codeJson}</script>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.1/dist/mermaid-layout-elk.esm.min.mjs';
+    import elkLayouts from '/vendor/layout-elk/mermaid-layout-elk.esm.min.mjs';
 
     mermaid.registerLayoutLoaders(elkLayouts);
     mermaid.initialize({
@@ -186,6 +187,52 @@ async function handleList(request, env, session) {
   }
 }
 
+async function handleRename(request, env, session) {
+  const denied = requireSession(session);
+  if (denied) return denied;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { oldId, newId } = body;
+
+  if (!oldId || !newId || typeof oldId !== 'string' || typeof newId !== 'string') {
+    return Response.json({ error: 'Invalid id format' }, { status: 400 });
+  }
+
+  if (!ID_PATTERN.test(oldId) || !ID_PATTERN.test(newId)) {
+    return Response.json({ error: 'Invalid id format' }, { status: 400 });
+  }
+
+  if (oldId === newId) {
+    return Response.json({ error: 'No change' }, { status: 400 });
+  }
+
+  try {
+    await renameDiagram(session.token, session.username, oldId, newId);
+    const origin = new URL(request.url).origin;
+    return Response.json({
+      ok: true,
+      id: newId,
+      shareUrl: getShareUrl(origin, session.username, newId),
+      githubUrl: getGitHubFileUrl(session.username, newId),
+    });
+  } catch (err) {
+    const message = err.message || 'Rename failed';
+    if (message === 'Diagram id already exists') {
+      return Response.json({ error: message }, { status: 409 });
+    }
+    if (message === 'Not found') {
+      return Response.json({ error: message }, { status: 404 });
+    }
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
 async function handleView(request, env) {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
@@ -255,6 +302,10 @@ export default {
 
     if (pathname === '/api/list' && request.method === 'GET') {
       return handleList(request, env, session);
+    }
+
+    if (pathname === '/api/rename' && request.method === 'POST') {
+      return handleRename(request, env, session);
     }
 
     if (pathname.startsWith('/view/') && request.method === 'GET') {
