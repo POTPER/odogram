@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>odogram — Mermaid Editor</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar">
+      <div class="save-group">
+        <button id="btn-save" class="primary" disabled title="Save to GitHub">Save</button>
+        <button id="btn-save-help" type="button" title="保存位置说明" aria-label="Save location help">?</button>
+        <div id="save-help-popover" class="save-help-popover" hidden>
+          <div id="save-help-content"></div>
+        </div>
+      </div>
+      <button id="btn-copy" title="Copy source">Copy</button>
+      <button id="btn-download" title="Download SVG">Download SVG</button>
+      <button id="btn-example" title="Load example">Load Example</button>
+      <span id="share-url" class="share-url"></span>
+      <span class="spacer"></span>
+      <div id="user-info" class="user-info" hidden>
+        <img id="user-avatar" alt="" width="24" height="24">
+        <span id="user-name"></span>
+        <button id="btn-logout">Logout</button>
+      </div>
+      <button id="btn-login">Login with GitHub</button>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <div class="main">
+      <aside id="sidebar" class="sidebar">
+        <h3>My Diagrams</h3>
+        <ul id="diagram-list" class="diagram-list"></ul>
+      </aside>
+
+      <div class="editor-pane">
+        <div class="pane">
+          <div class="pane-header">Source</div>
+          <textarea id="editor" spellcheck="false" placeholder="Write Mermaid syntax here..."></textarea>
+        </div>
+        <div class="pane">
+          <div class="pane-header">Preview</div>
+          <div id="preview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

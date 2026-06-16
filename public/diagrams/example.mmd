@@ -1,0 +1,11 @@
+flowchart LR
+  subgraph editor [Odogram Editor]
+    A[Write Mermaid] --> B[Live Preview]
+    B --> C[Save to GitHub]
+  end
+
+  subgraph github [Your GitHub]
+    D[odogram-diagrams/diagrams/*.mmd]
+  end
+
+  C --> D

@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "odogram",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-06-01",
+  "workers_dev": true,
+  "vars": {
+    "APP_URL": "https://gram.yekai.ltd"
+  },
+  "routes": [
+    {
+      "pattern": "gram.yekai.ltd",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  }
+}
