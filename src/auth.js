@@ -1,7 +1,7 @@
 const SESSION_COOKIE = 'odogram_session';
 const STATE_COOKIE = 'odogram_oauth_state';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-const ID_PATTERN = /^[\p{L}\p{N}_-]{3,64}$/u;
+const ID_PATTERN = /^[\p{L}\p{N}_-]{2,64}$/u;
 
 export { ID_PATTERN, SESSION_COOKIE };
 
