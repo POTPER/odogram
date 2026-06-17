@@ -23,6 +23,8 @@ const btnSave = document.getElementById('btn-save');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnExample = document.getElementById('btn-example');
+const btnProduct = document.getElementById('btn-product');
+const layoutSelectWrap = document.querySelector('.layout-select-wrap');
 const btnLogin = document.getElementById('btn-login');
 const btnLogout = document.getElementById('btn-logout');
 const btnUserToggle = document.getElementById('btn-user-toggle');
@@ -121,6 +123,14 @@ function bindToolbar() {
   layoutSelect.addEventListener('change', handleLayoutChange);
   btnDownload.addEventListener('click', () => previewApi.downloadSvg());
   btnExample.addEventListener('click', () => diagramApi.loadExample());
+  btnProduct.addEventListener('click', () => diagramApi.loadProductExample());
+
+  window.addEventListener('odogram:format-change', (event) => {
+    const isOproduct = event.detail?.format === 'oproduct';
+    if (layoutSelectWrap) {
+      layoutSelectWrap.hidden = isOproduct;
+    }
+  });
   btnLogin.addEventListener('click', () => {
     window.location.href = '/auth/login';
   });
@@ -130,6 +140,10 @@ function bindToolbar() {
 }
 
 async function init() {
+  document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+  }, { capture: true });
+
   try {
     ctx.editor = createMermaidEditor(editorRoot, {
       onChange: () => {
@@ -148,6 +162,12 @@ async function init() {
     showStatus,
     escapeHtml,
     onRenderSuccess: () => diagramApi?.onPreviewRendered?.(),
+    getSource: () => ctx.editor?.getValue() ?? '',
+    setSource: (code) => {
+      if (!ctx.editor) return;
+      ctx.editor.setValue(code);
+      syncLayoutSelectFromCode();
+    },
   });
   scheduleRender = previewApi.scheduleRender;
   initNameDialog();
@@ -164,12 +184,12 @@ async function init() {
   scheduleAutoSave = diagramApi.scheduleAutoSave;
   markContentDirty = diagramApi.markContentDirty;
 
-  ctx.layoutUI = initLayoutUI();
-  bindToolbar();
-
   window.addEventListener('odogram:preview-resize', () => {
     if (previewApi.getPreviewSvg()) previewApi.fitPreview();
   });
+
+  ctx.layoutUI = initLayoutUI();
+  bindToolbar();
 
   const params = new URLSearchParams(window.location.search);
   const error = params.get('error');
@@ -188,11 +208,19 @@ async function init() {
     if (queryId) {
       await diagramApi.loadDiagram(queryId, queryFolder);
     } else {
-      await diagramApi.loadExample();
+      try {
+        await diagramApi.loadWelcome();
+      } catch (err) {
+        showStatus(err.message || 'Failed to load product map', true);
+      }
     }
     await listPromise;
   } else {
-    await diagramApi.loadExample();
+    try {
+      await diagramApi.loadWelcome();
+    } catch (err) {
+      showStatus(err.message || 'Failed to load product map', true);
+    }
   }
 
   authApi.updateSaveHelpContent();

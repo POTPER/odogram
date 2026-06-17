@@ -3,7 +3,10 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 function parseYamlLine(line) {
   const idx = line.indexOf(':');
   if (idx === -1) return null;
-  return [line.slice(0, idx).trim(), line.slice(idx + 1).trim()];
+  const key = line.slice(0, idx).trim();
+  let value = line.slice(idx + 1).trim();
+  value = value.replace(/^['"]|['"]$/g, '');
+  return [key, value];
 }
 
 export function normalizeFolder(folder) {
@@ -14,18 +17,37 @@ export function normalizeFolder(folder) {
 export function parseFrontmatter(body) {
   const match = body.match(FRONTMATTER_RE);
   if (!match) {
-    return { folder: '', content: body.trim() };
+    return {
+      folder: '',
+      format: 'mermaid',
+      view: 'tree',
+      title: '',
+      content: body.trim(),
+    };
   }
 
   let folder = '';
+  let format = 'mermaid';
+  let view = 'tree';
+  let title = '';
+
   for (const line of match[1].split('\n')) {
     const parsed = parseYamlLine(line);
     if (!parsed) continue;
     const [key, value] = parsed;
     if (key === 'folder') folder = normalizeFolder(value);
+    else if (key === 'format') format = value || 'mermaid';
+    else if (key === 'view') view = value || 'tree';
+    else if (key === 'title') title = value;
   }
 
-  return { folder, content: body.slice(match[0].length).trim() };
+  return {
+    folder,
+    format,
+    view,
+    title,
+    content: body.slice(match[0].length).trim(),
+  };
 }
 
 export function serializeFrontmatter(folder, content) {

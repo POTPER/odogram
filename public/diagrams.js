@@ -761,6 +761,41 @@ async function loadStaticExample() {
   updateSaveHelpContentFn();
 }
 
+async function loadWelcome() {
+  await flushAutoSave();
+
+  const res = await fetch('/diagrams/oproduct-欢迎.oprd');
+  if (!res.ok) throw new Error('Failed to load product map');
+
+  suppressAutoSave = true;
+  clearAutoSaveTimer();
+  clearContentDirty();
+  const text = await res.text();
+  ctx.editor.setValue(text);
+  syncBaseline(text);
+  suppressAutoSave = false;
+  ctx.currentId = null;
+  ctx.currentFolder = '';
+  ctx.currentNumber = null;
+  ctx.currentUpdatedAt = null;
+  ctx.lastShareUrl = '';
+  ctx.lastGithubUrl = '';
+  setQueryDiagramFn('', null);
+  shareUrlEl.textContent = '';
+  scheduleRenderFn();
+  diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
+  updateSaveHelpContentFn();
+}
+
+async function loadProductExample() {
+  try {
+    await loadWelcome();
+    showStatusFn('产品构成图已加载');
+  } catch (err) {
+    showStatusFn(err.message || 'Failed to load product map', true);
+  }
+}
+
 async function loadExample() {
   try {
     await flushAutoSave();
@@ -836,7 +871,9 @@ export function initDiagrams({
 
   return {
     saveDiagram,
+    loadWelcome,
     loadExample,
+    loadProductExample,
     copySource,
     newDiagram,
     loadDiagram,

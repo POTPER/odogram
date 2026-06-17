@@ -65,9 +65,13 @@
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             <span>Download</span>
           </button>
-          <button id="btn-example" type="button" class="btn-icon-text" title="Load example">
+          <button id="btn-example" type="button" class="btn-icon-text" title="Load Mermaid tutorial / 加载 Mermaid 教程">
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
             <span>Example</span>
+          </button>
+          <button id="btn-product" type="button" class="btn-icon-text" title="Reload product map / 重新加载产品构成图">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2zm-8 0V6H2v10h2z"/></svg>
+            <span>Product</span>
           </button>
           <span id="share-url" class="share-url"></span>
         </div>
@@ -119,7 +123,10 @@
 
         <div class="workbench">
           <div class="pane pane-source">
-            <div class="pane-header">Source</div>
+            <div class="pane-header source-header">
+              <span id="source-header-label">Source</span>
+              <button type="button" id="btn-expand-source" class="source-expand-btn" hidden title="Expand to split">Expand to split</button>
+            </div>
             <div id="editor-root" class="editor-root"></div>
           </div>
 
@@ -129,6 +136,16 @@
             <div class="pane-header preview-header">
               <span>Preview</span>
               <div class="preview-controls">
+                <div class="oproduct-view-switch" role="group" aria-label="Product view" hidden>
+                  <button type="button" class="mode-btn active" data-oproduct-view="tree" aria-pressed="true" title="Module tree">Tree</button>
+                  <button type="button" class="mode-btn" data-oproduct-view="roadmap" aria-pressed="false" title="Roadmap">Roadmap</button>
+                  <button type="button" class="mode-btn" data-oproduct-view="journey" aria-pressed="false" title="User journey">Journey</button>
+                </div>
+                <div class="workbench-mode-switch" role="group" aria-label="Workbench mode">
+                  <button type="button" class="mode-btn active" data-workbench-mode="edit" aria-pressed="true" title="Edit — split panes">Edit</button>
+                  <button type="button" class="mode-btn" data-workbench-mode="focus" aria-pressed="false" title="Focus — preview only">Focus</button>
+                  <button type="button" class="mode-btn" data-workbench-mode="result" aria-pressed="false" title="Result — preview with compact source">Result</button>
+                </div>
                 <button type="button" id="btn-zoom-out" title="Zoom out" disabled>−</button>
                 <span id="zoom-label" class="zoom-label">100%</span>
                 <button type="button" id="btn-zoom-in" title="Zoom in" disabled>+</button>
@@ -137,6 +154,7 @@
               </div>
             </div>
             <div id="preview" class="preview-viewport">
+              <button type="button" id="btn-focus-expand" class="focus-expand-strip" hidden title="Expand source panel">Source ▸</button>
               <div id="preview-canvas" class="preview-canvas"></div>
             </div>
           </div>

@@ -27,6 +27,7 @@ import {
   saveDiagram,
 } from './github.js';
 import { migrateIfNeeded } from './migrate.js';
+import { parseFrontmatter } from './frontmatter.js';
 
 function escapeHtml(str) {
   return str
@@ -156,7 +157,63 @@ function viewPageHtml({ username, id, folder, code, origin, nonce }) {
     } catch (err) {
       preview.innerHTML = '<div class="error">Failed to render diagram</div>';
     }
+
+    document.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+    }, { capture: true });
   </script>
+</body>
+</html>`;
+}
+
+function viewOproductPageHtml({ username, id, folder, code, origin, nonce }) {
+  const safeUser = escapeHtml(username);
+  const safeId = escapeHtml(id);
+  const safeFolder = folder ? escapeHtml(folder) : '';
+  const displayPath = folder ? `${safeFolder} / ${safeId}` : safeId;
+  const codeJson = JSON.stringify(code).replace(/</g, '\\u003c');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeId} — odogram</title>
+  <link rel="stylesheet" href="/style.css">
+  <style nonce="${nonce}">
+    body { margin: 0; min-height: 100vh; background: #1e1e1e; color: #cccccc; font-family: 'Segoe UI', system-ui, sans-serif; }
+    header {
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+      background: #252526; border-bottom: 1px solid #3c3c3c;
+    }
+    header a { color: #007acc; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    .meta { color: #858585; font-size: 13px; }
+    .oproduct-readonly-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 16px; background: #252526; border-bottom: 1px solid #3c3c3c;
+    }
+    #preview { flex: 1; overflow: auto; padding: 16px; }
+    #preview-canvas { position: relative; inset: auto; min-height: 100%; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">odogram</a>
+    <span class="meta">${safeUser} / ${displayPath}</span>
+    <a href="${escapeHtml(getShareUrl(origin, username, id, folder))}">Share</a>
+  </header>
+  <div class="oproduct-readonly-bar">
+    <span class="meta">Product view</span>
+    <div id="oproduct-view-toolbar" class="oproduct-view-switch" role="group" aria-label="Product view">
+      <button type="button" class="mode-btn active" data-oproduct-view="tree" aria-pressed="true">Tree</button>
+      <button type="button" class="mode-btn" data-oproduct-view="roadmap" aria-pressed="false">Roadmap</button>
+      <button type="button" class="mode-btn" data-oproduct-view="journey" aria-pressed="false">Journey</button>
+    </div>
+  </div>
+  <div id="preview"><div id="preview-canvas"></div></div>
+  <script id="diagram-data" type="application/json">${codeJson}</script>
+  <script type="module" src="/view-oproduct.js" nonce="${nonce}" crossorigin="anonymous"></script>
 </body>
 </html>`;
 }
@@ -459,18 +516,24 @@ async function handleView(request, env) {
     }
 
     const nonce = toBase64Url(crypto.getRandomValues(new Uint8Array(16)));
-    const html = viewPageHtml({
+    const meta = parseFrontmatter(code);
+    const pageArgs = {
       username,
       id,
       folder: normalizeFolder(folder),
       code,
       origin: url.origin,
       nonce,
-    });
+    };
+    const html = meta.format === 'oproduct'
+      ? viewOproductPageHtml(pageArgs)
+      : viewPageHtml(pageArgs);
 
     const csp = [
       "default-src 'self'",
-      `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
+      meta.format === 'oproduct'
+        ? `script-src 'self' 'nonce-${nonce}'`
+        : `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
       `style-src 'self' 'nonce-${nonce}'`,
       "img-src 'self' data:",
       "connect-src 'self'",

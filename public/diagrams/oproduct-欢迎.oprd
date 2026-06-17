@@ -1,0 +1,87 @@
+---
+format: oproduct
+view: tree
+title: odogram — 产品构成与能力地图
+---
+
+@view tree
+module 产品定位
+  feature Cursor 风格 Mermaid 在线编辑器 [done]
+  feature 图表保存在用户 GitHub Issue 站点只做编辑与分享 [done]
+  feature 部署于 Cloudflare Worker 无服务端存图 [done]
+
+module 编辑器
+  feature CodeMirror 源码编辑语法高亮 [done]
+  feature 撤销与重做 Ctrl+Z / Ctrl+Y [done]
+  feature 2 秒 debounce 自动保存 [done]
+  feature Layout 切换 dagre 默认与 elk 正交 [done]
+
+module Mermaid预览
+  feature 实时渲染 Cursor 暗色主题 [done]
+  feature viewBox 矢量缩放放大不糊 [done]
+  feature 滚轮缩放右键与中键平移左键拾取元素 [done]
+  feature 双击或 Enter 预览改标签回写源码 [done]
+
+module 工作模式
+  feature Edit 左右分屏可拖拽比例 [done]
+  feature Focus 预览独占思考模式 [done]
+  feature Result 预览在上底栏紧凑源码 [done]
+  feature 移动端 Source 与 Preview Tab 切换 [done]
+
+module oproduct格式
+  feature format oproduct 与 Mermaid 共存 [done]
+  feature Tree 模块功能能力地图 [done]
+  feature Roadmap 里程碑与交付项 [done]
+  feature Journey 角色步骤与功能触点 [done]
+
+module 存储与账号
+  feature GitHub OAuth 登录 [done]
+  feature Issue 持久化 label odogram diagram [done]
+  feature 文件夹与 id URL 与侧栏管理 [done]
+  feature 重命名复制移动删除图表 [done]
+  feature 旧 diagrams mmd 自动迁移到 Issue [done]
+
+module 分享与导出
+  feature 公开分享页 /view/user/folder/id [done]
+  feature 复制源码到剪贴板 [done]
+  feature Mermaid 图导出 SVG [done]
+  feature 全站禁用浏览器右键菜单 [done]
+
+@view roadmap
+milestone 已完成-P1
+  deliver Issue 存储与 2s 自动保存 [done]
+  deliver 预览矢量缩放与交互改造 [done]
+  deliver 预览标签编辑回写源码 [done]
+  deliver 工作模式 Edit Focus Result [done]
+  deliver oproduct 多视图 DSL tree roadmap journey [done]
+
+milestone P1.5
+  deliver oproduct 预览内选中与回写 DSL [plan]
+  deliver 粘贴大段代码后提示切换 Result 模式 [plan]
+  deliver Result 底栏高度可拖拽 [plan]
+
+milestone P2
+  deliver URL 无登录 LZ 压缩分享 [plan]
+  deliver Present 演示模式 [plan]
+  deliver 协作评论与模板库 [plan]
+  deliver oproduct 导出 PNG [plan]
+
+@view journey
+persona 访客
+  step 打开 odogram -> 默认看到产品构成图 tree 视图
+  step 切换 Roadmap 或 Journey -> 了解规划与用户路径
+  step 点击 Example -> 加载 Mermaid 双语教程图
+
+persona 新用户
+  step GitHub 登录 -> 授权 repo 范围
+  step 编辑图表 -> 2s 后自动保存到 Issue
+  step 侧栏 My Diagrams -> 新建文件夹与管理图表
+
+persona 深度编辑
+  step 编写 Mermaid 源码 -> 右侧实时预览
+  step 切换 Focus 模式 -> 在预览中理清逻辑
+  step 双击节点标签 -> 改文案同步回左侧源码
+
+persona 分享收件人
+  step 打开分享链接 /view/... -> 只读预览
+  step 查看 Mermaid SVG 或 oproduct 产品视图 -> 无需登录
