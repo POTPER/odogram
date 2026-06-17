@@ -32,6 +32,7 @@ const btnNewDiagram = document.getElementById('btn-new-diagram');
 let layoutSyncing = false;
 let scheduleRender = () => {};
 let scheduleAutoSave = () => {};
+let markContentDirty = () => {};
 let previewApi;
 let authApi;
 let diagramApi;
@@ -111,6 +112,7 @@ async function init() {
     ctx.editor = createMermaidEditor(editorRoot, {
       onChange: () => {
         scheduleRender();
+        markContentDirty();
         scheduleAutoSave();
       },
     });
@@ -120,7 +122,11 @@ async function init() {
     return;
   }
 
-  previewApi = initPreview({ showStatus, escapeHtml });
+  previewApi = initPreview({
+    showStatus,
+    escapeHtml,
+    onRenderSuccess: () => diagramApi?.onPreviewRendered?.(),
+  });
   scheduleRender = previewApi.scheduleRender;
   initNameDialog();
   authApi = initAuthUI({ showStatus, escapeHtml });
@@ -133,6 +139,7 @@ async function init() {
     updateSaveHelpContent: authApi.updateSaveHelpContent,
   });
   scheduleAutoSave = diagramApi.scheduleAutoSave;
+  markContentDirty = diagramApi.markContentDirty;
 
   ctx.layoutUI = initLayoutUI();
   bindToolbar();

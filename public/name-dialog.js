@@ -10,6 +10,8 @@ const nameDialogConfirm = document.getElementById('name-dialog-confirm');
 const nameDialogOverwrite = document.getElementById('name-dialog-overwrite');
 
 let nameDialogResolver = null;
+let nameDialogExcludeId = null;
+let nameDialogAllowOverwrite = true;
 
 function validateDiagramId(id) {
   if (!ID_PATTERN.test(id)) {
@@ -19,6 +21,7 @@ function validateDiagramId(id) {
 }
 
 function isDiagramIdTaken(id) {
+  if (nameDialogExcludeId && id === nameDialogExcludeId) return false;
   return ctx.diagramIds.has(id);
 }
 
@@ -34,6 +37,8 @@ function setNameDialogError(message) {
 
 function closeNameDialog(result) {
   nameDialogBackdrop.hidden = true;
+  nameDialogExcludeId = null;
+  nameDialogAllowOverwrite = true;
   document.removeEventListener('keydown', onNameDialogKeydown);
   if (nameDialogResolver) {
     nameDialogResolver(result);
@@ -59,8 +64,13 @@ function tryConfirmNameDialog({ overwrite = false } = {}) {
   }
 
   if (isDiagramIdTaken(id) && !overwrite) {
-    setNameDialogError(`"${id}" already exists. Choose another name or click Overwrite.`);
-    nameDialogOverwrite.hidden = false;
+    if (nameDialogAllowOverwrite) {
+      setNameDialogError(`"${id}" already exists. Choose another name or click Overwrite.`);
+      nameDialogOverwrite.hidden = false;
+    } else {
+      setNameDialogError(`"${id}" already exists. Choose another name.`);
+      nameDialogOverwrite.hidden = true;
+    }
     return;
   }
 
@@ -80,9 +90,16 @@ export async function refreshDiagramIds() {
   ctx.diagramIds = new Set(diagrams.map((item) => item.id));
 }
 
-export function promptDiagramName({ title = 'Diagram name', defaultValue = '' } = {}) {
+export function promptDiagramName({
+  title = 'Diagram name',
+  defaultValue = '',
+  excludeId = null,
+  allowOverwrite = true,
+} = {}) {
   return new Promise((resolve) => {
     nameDialogResolver = resolve;
+    nameDialogExcludeId = excludeId;
+    nameDialogAllowOverwrite = allowOverwrite;
     nameDialogTitle.textContent = title;
     nameDialogInput.value = defaultValue;
     setNameDialogError(null);

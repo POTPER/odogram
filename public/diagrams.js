@@ -7,7 +7,7 @@ const diagramList = document.getElementById('diagram-list');
 const btnSave = document.getElementById('btn-save');
 const contextMenu = document.getElementById('diagram-context-menu');
 
-const AUTO_SAVE_DELAY_MS = 1000;
+const AUTO_SAVE_FALLBACK_MS = 1500;
 
 let showStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
@@ -16,7 +16,9 @@ let syncLayoutSelectFromCodeFn = () => {};
 let setQueryIdFn = () => {};
 let updateSaveHelpContentFn = () => {};
 let suppressAutoSave = false;
+let contentDirty = false;
 let autoSaveTimer = null;
+let saveInFlight = false;
 let contextMenuTargetId = null;
 
 function hideContextMenu() {
@@ -36,33 +38,52 @@ function showContextMenu(x, y, diagramId) {
 function initContextMenu() {
   if (!contextMenu) return;
 
-  contextMenu.addEventListener('click', (event) => event.stopPropagation());
-  contextMenu.querySelector('[data-action="rename"]')?.addEventListener('click', async () => {
+  contextMenu.querySelector('[data-action="rename"]')?.addEventListener('mousedown', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
     const oldId = contextMenuTargetId;
     hideContextMenu();
     if (!oldId) return;
 
     await refreshDiagramIds();
-    const result = await promptDiagramName({ title: 'Rename diagram', defaultValue: oldId });
+    const result = await promptDiagramName({
+      title: 'Rename diagram',
+      defaultValue: oldId,
+      excludeId: oldId,
+      allowOverwrite: false,
+    });
     if (!result) return;
 
     await renameDiagram(oldId, result.id);
   });
 
-  document.addEventListener('click', hideContextMenu);
+  document.addEventListener('click', (event) => {
+    if (contextMenu.hidden) return;
+    if (!contextMenu.contains(event.target)) hideContextMenu();
+  });
+
   document.addEventListener('contextmenu', (event) => {
+    if (contextMenu.hidden) return;
     if (!contextMenu.contains(event.target)) hideContextMenu();
   });
 }
 
-async function flushAutoSave() {
-  if (!autoSaveTimer) return;
+function markContentDirty() {
+  if (suppressAutoSave) return;
+  contentDirty = true;
+}
 
+function clearContentDirty() {
+  contentDirty = false;
+}
+
+async function flushAutoSave() {
   clearTimeout(autoSaveTimer);
   autoSaveTimer = null;
 
-  if (ctx.user?.login && ctx.currentId && !suppressAutoSave) {
-    await saveDiagramQuiet();
+  if (contentDirty && ctx.user?.login && ctx.currentId && !suppressAutoSave) {
+    await saveIfDirty({ quiet: true });
   }
 }
 
@@ -72,8 +93,22 @@ function scheduleAutoSave() {
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => {
     autoSaveTimer = null;
-    saveDiagramQuiet();
-  }, AUTO_SAVE_DELAY_MS);
+    saveIfDirty({ quiet: true });
+  }, AUTO_SAVE_FALLBACK_MS);
+}
+
+function onPreviewRendered() {
+  saveIfDirty({ quiet: true });
+}
+
+async function saveIfDirty({ quiet = true } = {}) {
+  if (!contentDirty || !ctx.user?.login || !ctx.currentId || suppressAutoSave || saveInFlight) {
+    return;
+  }
+
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+  await saveDiagramWithId(ctx.currentId, { quiet });
 }
 
 async function loadDiagramList() {
@@ -102,6 +137,7 @@ async function loadDiagramList() {
 
     li.addEventListener('contextmenu', (event) => {
       event.preventDefault();
+      event.stopPropagation();
       showContextMenu(event.clientX, event.clientY, item.id);
     });
 
@@ -127,6 +163,7 @@ async function loadDiagram(id) {
   const data = await res.json();
   ctx.currentId = data.id;
   suppressAutoSave = true;
+  clearContentDirty();
   ctx.editor.setValue(data.code);
   suppressAutoSave = false;
   syncLayoutSelectFromCodeFn();
@@ -140,7 +177,10 @@ async function loadDiagram(id) {
 }
 
 async function saveDiagramWithId(id, { quiet = false } = {}) {
+  if (saveInFlight) return;
+
   if (!quiet) btnSave.disabled = true;
+  saveInFlight = true;
 
   try {
     const res = await fetch('/api/save', {
@@ -163,6 +203,7 @@ async function saveDiagramWithId(id, { quiet = false } = {}) {
     ctx.lastGithubUrl = data.githubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId);
     shareUrlEl.textContent = ctx.lastShareUrl;
     shareUrlEl.title = ctx.lastShareUrl;
+    clearContentDirty();
     updateSaveHelpContentFn();
 
     if (quiet) {
@@ -174,13 +215,9 @@ async function saveDiagramWithId(id, { quiet = false } = {}) {
   } catch (err) {
     showStatusFn(err.message || 'Save failed', true);
   } finally {
+    saveInFlight = false;
     if (!quiet) btnSave.disabled = false;
   }
-}
-
-async function saveDiagramQuiet() {
-  if (!ctx.user?.login || !ctx.currentId || suppressAutoSave) return;
-  await saveDiagramWithId(ctx.currentId, { quiet: true });
 }
 
 async function saveDiagram() {
@@ -191,6 +228,7 @@ async function saveDiagram() {
 
   clearTimeout(autoSaveTimer);
   autoSaveTimer = null;
+  contentDirty = true;
   await saveDiagramWithId(ctx.currentId || undefined);
 }
 
@@ -209,6 +247,7 @@ async function newDiagram() {
   shareUrlEl.textContent = '';
 
   suppressAutoSave = true;
+  clearContentDirty();
   ctx.editor.setValue(NEW_DIAGRAM_TEMPLATE);
   suppressAutoSave = false;
   syncLayoutSelectFromCodeFn();
@@ -266,6 +305,7 @@ async function loadExample() {
     if (!res.ok) throw new Error('Failed to load example');
 
     suppressAutoSave = true;
+    clearContentDirty();
     ctx.editor.setValue(await res.text());
     suppressAutoSave = false;
     syncLayoutSelectFromCodeFn();
@@ -316,5 +356,7 @@ export function initDiagrams({
     loadDiagram,
     loadDiagramList,
     scheduleAutoSave,
+    markContentDirty,
+    onPreviewRendered,
   };
 }

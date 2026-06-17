@@ -23,6 +23,7 @@ let renderTimer = null;
 let renderSeq = 0;
 let showStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
+let onRenderSuccessFn = () => {};
 
 function getPreviewSvg() {
   return previewCanvas.querySelector('svg');
@@ -230,6 +231,7 @@ async function renderPreview() {
     ctx.lastSvg = svg;
     setPreviewInteractionsEnabled(true);
     fitPreview();
+    onRenderSuccessFn();
   } catch (err) {
     if (seq !== renderSeq) return;
     previewCanvas.innerHTML = `<div class="preview-error">${escapeHtmlFn(String(err.message || err))}</div>`;
@@ -260,9 +262,10 @@ function downloadSvg() {
   showStatusFn('SVG downloaded');
 }
 
-export function initPreview({ showStatus, escapeHtml }) {
+export function initPreview({ showStatus, escapeHtml, onRenderSuccess } = {}) {
   showStatusFn = showStatus;
   escapeHtmlFn = escapeHtml;
+  onRenderSuccessFn = onRenderSuccess || (() => {});
   initPreviewViewport();
 
   return {
