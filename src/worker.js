@@ -14,6 +14,7 @@ import {
   requireSession,
 } from './auth.js';
 import {
+  deleteDiagram,
   fetchPublicDiagram,
   getGitHubFileUrl,
   getShareUrl,
@@ -262,6 +263,35 @@ async function handleRename(request, env, session) {
   }
 }
 
+async function handleDelete(request, env, session) {
+  const denied = requireSession(session);
+  if (denied) return denied;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { id } = body;
+
+  if (!id || typeof id !== 'string' || !ID_PATTERN.test(id)) {
+    return Response.json({ error: 'Invalid id' }, { status: 400 });
+  }
+
+  try {
+    await deleteDiagram(session.token, session.username, id);
+    return Response.json({ ok: true });
+  } catch (err) {
+    const message = err.message || 'Delete failed';
+    if (message === 'Not found') {
+      return Response.json({ error: message }, { status: 404 });
+    }
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
 async function handleView(request, env) {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
@@ -354,6 +384,10 @@ export default {
 
     if (pathname === '/api/rename' && request.method === 'POST') {
       return handleRename(request, env, session);
+    }
+
+    if (pathname === '/api/delete' && request.method === 'POST') {
+      return handleDelete(request, env, session);
     }
 
     if (pathname.startsWith('/view/') && request.method === 'GET') {

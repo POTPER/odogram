@@ -708,6 +708,21 @@ body.sidebar-open .sidebar.visible {
   color: var(--accent);
 }
 
+.context-menu-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border);
+}
+
+.context-menu-danger {
+  color: var(--error-text);
+}
+
+.context-menu-danger:hover {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
 .diagram-item-icon {
   color: var(--text-muted);
   font-size: 10px;

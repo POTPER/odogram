@@ -35,27 +35,41 @@ function showContextMenu(x, y, diagramId) {
   contextMenu.style.top = `${y}px`;
 }
 
+function cancelPendingAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+}
+
 function initContextMenu() {
   if (!contextMenu) return;
 
-  contextMenu.querySelector('[data-action="rename"]')?.addEventListener('mousedown', async (event) => {
+  contextMenu.addEventListener('mousedown', async (event) => {
+    const btn = event.target.closest('[data-action]');
+    if (!btn) return;
+
     event.preventDefault();
     event.stopPropagation();
 
-    const oldId = contextMenuTargetId;
+    const action = btn.dataset.action;
+    const targetId = contextMenuTargetId;
     hideContextMenu();
-    if (!oldId) return;
+    if (!targetId) return;
 
-    await refreshDiagramIds();
-    const result = await promptDiagramName({
-      title: 'Rename diagram',
-      defaultValue: oldId,
-      excludeId: oldId,
-      allowOverwrite: false,
-    });
-    if (!result) return;
-
-    await renameDiagram(oldId, result.id);
+    if (action === 'rename') {
+      await refreshDiagramIds();
+      const result = await promptDiagramName({
+        title: 'Rename diagram',
+        defaultValue: targetId,
+        excludeId: targetId,
+        allowOverwrite: false,
+      });
+      if (!result) return;
+      await renameDiagram(targetId, result.id);
+    } else if (action === 'duplicate') {
+      await duplicateDiagram(targetId);
+    } else if (action === 'delete') {
+      await removeDiagram(targetId);
+    }
   });
 
   document.addEventListener('click', (event) => {
@@ -294,6 +308,90 @@ async function renameDiagram(oldId, newId) {
     showStatusFn(`Renamed to ${newId}. Old share links no longer work.`);
   } catch (err) {
     showStatusFn(err.message || 'Rename failed', true);
+  }
+}
+
+async function createDiagramFromCode(code) {
+  const res = await fetch('/api/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Save failed');
+  }
+
+  return data;
+}
+
+async function duplicateDiagram(id) {
+  if (!ctx.user?.login) {
+    showStatusFn('Login required', true);
+    return;
+  }
+
+  if (id !== ctx.currentId) {
+    await flushAutoSave();
+  }
+
+  try {
+    let code;
+    if (id === ctx.currentId) {
+      code = ctx.editor.getValue();
+    } else {
+      const res = await fetch(`/api/load?id=${encodeURIComponent(id)}`);
+      if (!res.ok) {
+        showStatusFn('Failed to load diagram', true);
+        return;
+      }
+      const data = await res.json();
+      code = data.code;
+    }
+
+    const data = await createDiagramFromCode(code);
+    await loadDiagram(data.id);
+    showStatusFn(`Duplicated as ${data.id}`);
+  } catch (err) {
+    showStatusFn(err.message || 'Duplicate failed', true);
+  }
+}
+
+async function removeDiagram(id) {
+  if (!ctx.user?.login) {
+    showStatusFn('Login required', true);
+    return;
+  }
+
+  if (!confirm(`Delete "${id}"?`)) return;
+
+  if (id === ctx.currentId) {
+    cancelPendingAutoSave();
+  }
+
+  try {
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Delete failed');
+    }
+
+    if (id === ctx.currentId) {
+      await loadExample();
+      await loadDiagramList();
+    } else {
+      await loadDiagramList();
+    }
+
+    showStatusFn(`Deleted ${id}`);
+  } catch (err) {
+    showStatusFn(err.message || 'Delete failed', true);
   }
 }
 
