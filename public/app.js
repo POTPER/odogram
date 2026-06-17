@@ -36,6 +36,14 @@ const btnMenuDiagrams = document.getElementById('btn-menu-diagrams');
 const btnNewDiagram = document.getElementById('btn-new-diagram');
 const userAvatar = document.getElementById('user-avatar');
 const userName = document.getElementById('user-name');
+const nameDialogBackdrop = document.getElementById('name-dialog-backdrop');
+const nameDialog = document.getElementById('name-dialog');
+const nameDialogTitle = document.getElementById('name-dialog-title');
+const nameDialogInput = document.getElementById('name-dialog-input');
+const nameDialogError = document.getElementById('name-dialog-error');
+const nameDialogCancel = document.getElementById('name-dialog-cancel');
+const nameDialogConfirm = document.getElementById('name-dialog-confirm');
+const nameDialogOverwrite = document.getElementById('name-dialog-overwrite');
 
 let currentId = null;
 let lastShareUrl = '';
@@ -49,6 +57,11 @@ let user = null;
 let editor = null;
 let layoutSyncing = false;
 let layoutUI = null;
+let diagramIds = new Set();
+let nameDialogResolver = null;
+
+const NEW_DIAGRAM_TEMPLATE = 'flowchart LR\n  A[New diagram] --> B[Edit me]';
+const ID_FORMAT_HINT = 'Use 3–64 characters: letters, numbers, underscore, hyphen';
 
 const PREVIEW_PADDING = 24;
 const PREVIEW_MIN_SCALE = 0.1;
@@ -449,18 +462,125 @@ function updateAuthUI() {
   updateSaveHelpContent();
 }
 
-function newDiagram() {
-  editor.setValue('flowchart LR\n  A[New diagram] --> B[Edit me]');
+function validateDiagramId(id) {
+  if (!ID_PATTERN.test(id)) {
+    return ID_FORMAT_HINT;
+  }
+  return null;
+}
+
+function isDiagramIdTaken(id) {
+  return diagramIds.has(id);
+}
+
+function setNameDialogError(message) {
+  if (message) {
+    nameDialogError.textContent = message;
+    nameDialogError.hidden = false;
+  } else {
+    nameDialogError.textContent = '';
+    nameDialogError.hidden = true;
+  }
+}
+
+function closeNameDialog(result) {
+  nameDialogBackdrop.hidden = true;
+  document.removeEventListener('keydown', onNameDialogKeydown);
+  if (nameDialogResolver) {
+    nameDialogResolver(result);
+    nameDialogResolver = null;
+  }
+}
+
+function onNameDialogKeydown(event) {
+  if (nameDialogBackdrop.hidden) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeNameDialog(null);
+  }
+}
+
+function tryConfirmNameDialog({ overwrite = false } = {}) {
+  const id = nameDialogInput.value.trim();
+  const formatError = validateDiagramId(id);
+  if (formatError) {
+    setNameDialogError(formatError);
+    nameDialogOverwrite.hidden = true;
+    return;
+  }
+
+  if (isDiagramIdTaken(id) && !overwrite) {
+    setNameDialogError(`"${id}" already exists. Choose another name or click Overwrite.`);
+    nameDialogOverwrite.hidden = false;
+    return;
+  }
+
+  closeNameDialog({ id, overwrite: overwrite || isDiagramIdTaken(id) });
+}
+
+async function refreshDiagramIds() {
+  if (!user?.login) {
+    diagramIds = new Set();
+    return;
+  }
+
+  const res = await fetch('/api/list');
+  if (!res.ok) return;
+
+  const { diagrams } = await res.json();
+  diagramIds = new Set(diagrams.map((item) => item.id));
+}
+
+function promptDiagramName({ title = 'Diagram name', defaultValue = '' } = {}) {
+  return new Promise((resolve) => {
+    nameDialogResolver = resolve;
+    nameDialogTitle.textContent = title;
+    nameDialogInput.value = defaultValue;
+    setNameDialogError(null);
+    nameDialogOverwrite.hidden = true;
+    nameDialogBackdrop.hidden = false;
+    document.addEventListener('keydown', onNameDialogKeydown);
+    nameDialogInput.focus();
+    nameDialogInput.select();
+  });
+}
+
+nameDialogBackdrop.addEventListener('click', () => closeNameDialog(null));
+nameDialog.addEventListener('click', (event) => event.stopPropagation());
+nameDialogCancel.addEventListener('click', () => closeNameDialog(null));
+nameDialogConfirm.addEventListener('click', () => tryConfirmNameDialog());
+nameDialogOverwrite.addEventListener('click', () => tryConfirmNameDialog({ overwrite: true }));
+nameDialogInput.addEventListener('input', () => {
+  setNameDialogError(null);
+  nameDialogOverwrite.hidden = true;
+});
+nameDialogInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    tryConfirmNameDialog();
+  }
+});
+
+async function newDiagram() {
+  if (!user?.login) {
+    showStatus('Login with GitHub to create diagrams', true);
+    return;
+  }
+
+  await refreshDiagramIds();
+  const result = await promptDiagramName({ title: 'New diagram' });
+  if (!result) return;
+
+  editor.setValue(NEW_DIAGRAM_TEMPLATE);
   syncLayoutSelectFromCode();
-  currentId = null;
   lastShareUrl = '';
   lastGithubUrl = '';
   setQueryId(null);
   shareUrlEl.textContent = '';
   scheduleRender();
-  updateSaveHelpContent();
   diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
-  showStatus('New diagram');
+
+  await saveDiagramWithId(result.id);
 }
 
 let renameEditLi = null;
@@ -564,6 +684,7 @@ async function loadDiagramList() {
   }
 
   const { diagrams } = await res.json();
+  diagramIds = new Set(diagrams.map((item) => item.id));
   diagramList.innerHTML = '';
 
   for (const item of diagrams) {
@@ -619,19 +740,14 @@ async function loadDiagram(id) {
   showStatus(`Loaded ${currentId}`);
 }
 
-async function saveDiagram() {
-  if (!user?.login) {
-    showStatus('Login with GitHub to save', true);
-    return;
-  }
-
+async function saveDiagramWithId(id) {
   btnSave.disabled = true;
   try {
     const res = await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: currentId || undefined,
+        id,
         code: editor.getValue(),
       }),
     });
@@ -655,6 +771,24 @@ async function saveDiagram() {
   } finally {
     btnSave.disabled = false;
   }
+}
+
+async function saveDiagram() {
+  if (!user?.login) {
+    showStatus('Login with GitHub to save', true);
+    return;
+  }
+
+  if (currentId) {
+    await saveDiagramWithId(currentId);
+    return;
+  }
+
+  await refreshDiagramIds();
+  const result = await promptDiagramName({ title: 'Diagram name' });
+  if (!result) return;
+
+  await saveDiagramWithId(result.id);
 }
 
 async function loadExample() {

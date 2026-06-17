@@ -318,6 +318,112 @@ a:focus-visible,
   display: none;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.name-dialog {
+  width: min(400px, 100%);
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.name-dialog-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.name-dialog-hint {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.name-dialog-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.name-dialog-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.name-dialog-error {
+  margin: 8px 0 0;
+  color: var(--error-text);
+  font-size: 12px;
+}
+
+.name-dialog-error[hidden] {
+  display: none;
+}
+
+.name-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.name-dialog-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.name-dialog-btn:hover {
+  background: var(--surface-hover);
+}
+
+.name-dialog-btn.primary {
+  background: var(--primary);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.name-dialog-btn.primary:hover {
+  background: var(--primary-hover);
+}
+
+.name-dialog-btn.name-dialog-overwrite {
+  border-color: var(--error-text);
+  color: var(--error-text);
+}
+
+.name-dialog-btn.name-dialog-overwrite:hover {
+  background: var(--error-bg);
+}
+
 .save-help-popover p {
   margin: 0 0 8px;
   color: var(--text);
