@@ -355,11 +355,18 @@ function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl }) {
   shareUrlEl.title = ctx.lastShareUrl;
   scheduleRenderFn();
   updateSaveHelpContentFn();
+  updateListActiveState();
 }
 
-async function diagramExists(id, folder = '') {
-  const res = await fetch(loadUrl(folder, id));
-  return res.ok;
+function updateListActiveState() {
+  diagramList.querySelectorAll('.diagram-list-item').forEach((li) => {
+    const btn = li.querySelector('.diagram-item-btn');
+    if (!btn) return;
+    btn.classList.toggle(
+      'active',
+      isCurrentDiagram(li.dataset.diagramFolder || '', li.dataset.diagramId),
+    );
+  });
 }
 
 async function loadDiagram(id, folder = '') {
@@ -378,7 +385,6 @@ async function loadDiagram(id, folder = '') {
 
   const data = await res.json();
   openDiagramInEditor(data);
-  await loadDiagramList();
   showStatusFn(`Loaded ${data.id}`);
   return true;
 }
@@ -526,6 +532,7 @@ async function renameDiagram(oldId, newId, folder = '') {
       githubUrl: data.githubUrl,
     });
     endSync('rename', folder, oldId);
+    await loadDiagramList();
     showStatusFn(`已重命名为 ${newId}`);
   } catch (err) {
     endSync('rename', folder, oldId);
@@ -622,6 +629,7 @@ async function duplicateDiagram(id, folder = '') {
 
     const data = await createDiagramFromCode(code, folder);
     await loadDiagram(data.id, data.folder || '');
+    await loadDiagramList();
     showStatusFn(`已复制为 ${data.id}`);
   } catch (err) {
     showStatusFn(err.message || '复制失败', true);
@@ -651,9 +659,8 @@ async function removeDiagram(id, folder = '') {
 
     if (isCurrentDiagram(folder, id)) {
       await loadExample();
-    } else {
-      await loadDiagramList();
     }
+    await loadDiagramList();
 
     showStatusFn(`Deleted ${displayPath}`);
   } catch (err) {
@@ -693,18 +700,32 @@ async function loadExample() {
 
     const folder = EXAMPLE_FOLDER;
     const id = EXAMPLE_ID;
+    const res = await fetch(loadUrl(folder, id));
 
-    if (!(await diagramExists(id, folder))) {
-      const res = await fetch('/diagrams/example.mmd');
-      if (!res.ok) throw new Error('Failed to load example');
-      const code = await res.text();
-      await saveDiagramWithId(id, { folder, code, quiet: true });
-    }
-
-    const loaded = await loadDiagram(id, folder);
-    if (loaded) {
+    if (res.ok) {
+      openDiagramInEditor(await res.json());
       showStatusFn('已打开示例');
+      return;
     }
+
+    if (res.status === 404) {
+      const templateRes = await fetch('/diagrams/example.mmd');
+      if (!templateRes.ok) throw new Error('Failed to load example');
+      const code = await templateRes.text();
+      await saveDiagramWithId(id, { folder, code, quiet: true });
+      openDiagramInEditor({
+        id,
+        folder,
+        code,
+        shareUrl: ctx.lastShareUrl,
+        githubUrl: ctx.lastGithubUrl,
+      });
+      showStatusFn('已打开示例');
+      return;
+    }
+
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to load example');
   } catch (err) {
     showStatusFn(err.message || 'Failed to load example', true);
   }

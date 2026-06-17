@@ -183,14 +183,16 @@ async function init() {
   authApi.updateAuthUI();
 
   const { id: queryId, folder: queryFolder } = getQueryDiagram();
-  if (queryId && ctx.user?.login) {
-    await diagramApi.loadDiagram(queryId, queryFolder);
+  if (ctx.user?.login) {
+    const listPromise = diagramApi.loadDiagramList();
+    if (queryId) {
+      await diagramApi.loadDiagram(queryId, queryFolder);
+    } else {
+      await diagramApi.loadExample();
+    }
+    await listPromise;
   } else {
     await diagramApi.loadExample();
-  }
-
-  if (ctx.user?.login) {
-    await diagramApi.loadDiagramList();
   }
 
   authApi.updateSaveHelpContent();

@@ -81,31 +81,30 @@ export async function ensureRepo(token, username) {
   }
 }
 
-async function getBranchTreeSha(token, username) {
-  const refRes = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/git/ref/heads/${BRANCH}`,
+async function listContents(token, username, path) {
+  const res = await fetch(
+    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}?ref=${BRANCH}`,
     { headers: githubHeaders(token) },
   );
 
-  if (refRes.status === 404) return null;
-  if (!refRes.ok) {
-    const err = await refRes.text();
-    throw new Error(`Failed to get branch ref: ${refRes.status} ${err}`);
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed to list contents: ${res.status} ${err}`);
   }
 
-  const ref = await refRes.json();
-  const commitRes = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/git/commits/${ref.object.sha}`,
-    { headers: githubHeaders(token) },
-  );
+  const data = await res.json();
+  return Array.isArray(data) ? data : [data];
+}
 
-  if (!commitRes.ok) {
-    const err = await commitRes.text();
-    throw new Error(`Failed to get commit: ${commitRes.status} ${err}`);
-  }
-
-  const commit = await commitRes.json();
-  return commit.tree.sha;
+function diagramEntry(username, folder, id) {
+  return {
+    id,
+    folder,
+    path: filePath(folder, id),
+    url: `https://github.com/${username}/${REPO_NAME}/blob/${BRANCH}/${encodeRepoPath(filePath(folder, id))}`,
+    updatedAt: null,
+  };
 }
 
 async function getFileMeta(token, username, id, folder = '') {
@@ -250,38 +249,31 @@ export async function moveDiagram(token, username, id, fromFolder = '', toFolder
 export async function listDiagrams(token, username) {
   await ensureRepo(token, username);
 
-  const treeSha = await getBranchTreeSha(token, username);
-  if (!treeSha) return [];
+  const rootItems = await listContents(token, username, DIAGRAMS_DIR);
+  const results = [];
 
-  const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/git/trees/${treeSha}?recursive=1`,
-    { headers: githubHeaders(token) },
-  );
+  for (const item of rootItems) {
+    if (item.type === 'file' && item.name.endsWith('.mmd')) {
+      results.push(diagramEntry(username, '', item.name.replace(/\.mmd$/, '')));
+      continue;
+    }
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to list diagrams: ${res.status} ${err}`);
+    if (item.type === 'dir') {
+      const folder = item.name;
+      const subItems = await listContents(token, username, `${DIAGRAMS_DIR}/${folder}`);
+      for (const sub of subItems) {
+        if (sub.type === 'file' && sub.name.endsWith('.mmd')) {
+          results.push(diagramEntry(username, folder, sub.name.replace(/\.mmd$/, '')));
+        }
+      }
+    }
   }
 
-  const data = await res.json();
-  if (!Array.isArray(data.tree)) return [];
-
-  return data.tree
-    .filter((item) => item.type === 'blob')
-    .map((item) => parseDiagramPath(item.path))
-    .filter(Boolean)
-    .map((parsed) => ({
-      id: parsed.id,
-      folder: parsed.folder,
-      path: filePath(parsed.folder, parsed.id),
-      url: `https://github.com/${username}/${REPO_NAME}/blob/${BRANCH}/${encodeRepoPath(filePath(parsed.folder, parsed.id))}`,
-      updatedAt: null,
-    }))
-    .sort((a, b) => {
-      const folderCmp = (a.folder || '').localeCompare(b.folder || '');
-      if (folderCmp !== 0) return folderCmp;
-      return a.id.localeCompare(b.id);
-    });
+  return results.sort((a, b) => {
+    const folderCmp = (a.folder || '').localeCompare(b.folder || '');
+    if (folderCmp !== 0) return folderCmp;
+    return a.id.localeCompare(b.id);
+  });
 }
 
 export async function fetchPublicDiagram(username, id, folder = '') {
