@@ -25,6 +25,8 @@ let updateSaveHelpContentFn = () => {};
 let suppressAutoSave = false;
 let contentDirty = false;
 let saveInFlight = false;
+let autoSaveTimer = null;
+let baselineCode = '';
 let contextMenuTargetId = null;
 let contextMenuTargetFolder = '';
 const syncRefs = new Map();
@@ -223,6 +225,21 @@ function initContextMenu() {
   });
 }
 
+function syncBaseline(code) {
+  baselineCode = code;
+}
+
+function hasUnsavedChanges(code) {
+  return code !== baselineCode;
+}
+
+function clearAutoSaveTimer() {
+  if (autoSaveTimer !== null) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+}
+
 function markContentDirty() {
   if (suppressAutoSave) return;
   contentDirty = true;
@@ -233,6 +250,7 @@ function clearContentDirty() {
 }
 
 async function flushAutoSave() {
+  clearAutoSaveTimer();
   if (contentDirty && ctx.user?.login && ctx.currentId && !suppressAutoSave) {
     await saveIfDirty({ quiet: true });
   }
@@ -240,19 +258,36 @@ async function flushAutoSave() {
 
 function scheduleAutoSave() {
   if (suppressAutoSave || !ctx.user?.login || !ctx.currentId) return;
-  saveIfDirty({ quiet: true });
-}
 
-function onPreviewRendered() {
-  saveIfDirty({ quiet: true });
-}
-
-async function saveIfDirty({ quiet = true } = {}) {
-  if (!contentDirty || !ctx.user?.login || !ctx.currentId || suppressAutoSave || saveInFlight) {
+  const code = ctx.editor.getValue();
+  if (!hasUnsavedChanges(code)) {
+    contentDirty = false;
     return;
   }
 
-  await saveDiagramWithId(ctx.currentId, { quiet });
+  contentDirty = true;
+  clearAutoSaveTimer();
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    saveIfDirty({ quiet: true });
+  }, 2000);
+}
+
+function onPreviewRendered() {
+  scheduleAutoSave();
+}
+
+async function saveIfDirty({ quiet = true } = {}) {
+  if (!ctx.user?.login || !ctx.currentId || suppressAutoSave || saveInFlight) {
+    return;
+  }
+
+  const code = ctx.editor.getValue();
+  if (!contentDirty && !hasUnsavedChanges(code)) {
+    return;
+  }
+
+  await saveDiagramWithId(ctx.currentId, { quiet, code });
 }
 
 function isCurrentDiagram(folder, id) {
@@ -340,17 +375,22 @@ async function loadDiagramList() {
   restoreSyncBadges();
 }
 
-function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl }) {
+function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl, number, updatedAt }) {
   ctx.currentId = id;
   ctx.currentFolder = folder || '';
+  ctx.currentNumber = number ?? null;
+  ctx.currentUpdatedAt = updatedAt ?? null;
   suppressAutoSave = true;
+  clearAutoSaveTimer();
   clearContentDirty();
   ctx.editor.setValue(code);
+  syncBaseline(code);
   suppressAutoSave = false;
   syncLayoutSelectFromCodeFn();
   setQueryDiagramFn(ctx.currentFolder, ctx.currentId);
   ctx.lastShareUrl = shareUrl || buildShareUrl(ctx.currentFolder, ctx.currentId);
-  ctx.lastGithubUrl = githubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder);
+  ctx.lastGithubUrl = githubUrl
+    || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
   shareUrlEl.textContent = ctx.lastShareUrl;
   shareUrlEl.title = ctx.lastShareUrl;
   scheduleRenderFn();
@@ -394,39 +434,56 @@ async function saveDiagramWithId(id, { quiet = false, folder, code } = {}) {
 
   const targetFolder = folder !== undefined ? (folder || '') : ctx.currentFolder;
   const targetId = id !== undefined ? id : ctx.currentId;
-  const syncKey = targetId ? diagramKey(targetFolder, targetId) : null;
+  const payloadCode = code !== undefined ? code : ctx.editor.getValue();
+
+  if (quiet && !hasUnsavedChanges(payloadCode) && !contentDirty) {
+    return;
+  }
 
   if (!quiet) btnSave.disabled = true;
   saveInFlight = true;
-  beginSync('save', targetFolder, targetId);
+  if (!quiet) beginSync('save', targetFolder, targetId);
+  if (quiet) showStatusFn('保存中…');
 
   try {
+    const body = {
+      id: id || undefined,
+      folder: targetFolder || undefined,
+      code: payloadCode,
+    };
+    if (ctx.currentUpdatedAt) {
+      body.expectedUpdatedAt = ctx.currentUpdatedAt;
+    }
+
     const res = await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: id || undefined,
-        folder: targetFolder || undefined,
-        code: code !== undefined ? code : ctx.editor.getValue(),
-      }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
     if (!res.ok) {
+      if (res.status === 409) {
+        throw new Error('已在别处修改，请刷新后重试');
+      }
       throw new Error(data.error || 'Save failed');
     }
 
     ctx.currentId = data.id;
     ctx.currentFolder = data.folder || '';
+    ctx.currentNumber = data.number ?? ctx.currentNumber;
+    ctx.currentUpdatedAt = data.updatedAt ?? null;
     setQueryDiagramFn(ctx.currentFolder, ctx.currentId);
     ctx.lastShareUrl = data.shareUrl || '';
-    ctx.lastGithubUrl = data.githubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder);
+    ctx.lastGithubUrl = data.githubUrl
+      || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
     shareUrlEl.textContent = ctx.lastShareUrl;
     shareUrlEl.title = ctx.lastShareUrl;
+    syncBaseline(payloadCode);
     clearContentDirty();
     updateSaveHelpContentFn();
 
-    endSync('save', targetFolder, targetId);
+    if (!quiet) endSync('save', targetFolder, targetId);
     if (quiet) {
       showStatusFn('已保存');
     } else {
@@ -434,13 +491,13 @@ async function saveDiagramWithId(id, { quiet = false, folder, code } = {}) {
       showStatusFn(`Saved to GitHub as ${ctx.currentFolder ? `${ctx.currentFolder}/` : ''}${ctx.currentId}`);
     }
   } catch (err) {
-    endSync('save', targetFolder, targetId);
+    if (!quiet) endSync('save', targetFolder, targetId);
     showStatusFn(err.message || 'Save failed', true);
   } finally {
     saveInFlight = false;
     if (!quiet) btnSave.disabled = false;
     if (contentDirty && quiet) {
-      saveIfDirty({ quiet: true });
+      scheduleAutoSave();
     }
   }
 }
@@ -451,8 +508,9 @@ async function saveDiagram() {
     return;
   }
 
+  clearAutoSaveTimer();
   contentDirty = true;
-  await saveDiagramWithId(ctx.currentId || undefined);
+  await saveDiagramWithId(ctx.currentId || undefined, { quiet: false });
 }
 
 async function newDiagram() {
@@ -464,6 +522,8 @@ async function newDiagram() {
   await flushAutoSave();
 
   ctx.currentId = null;
+  ctx.currentNumber = null;
+  ctx.currentUpdatedAt = null;
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   setQueryDiagramFn(ctx.currentFolder, null);
@@ -485,7 +545,7 @@ function findListLabel(folder, diagramId) {
   return li?.querySelector('.diagram-item-label') || null;
 }
 
-function commitRenameLocally(oldId, newId, folder = '', { shareUrl, githubUrl } = {}) {
+function commitRenameLocally(oldId, newId, folder = '', { shareUrl, githubUrl, number, updatedAt } = {}) {
   const wasCurrent = isCurrentDiagram(folder, oldId);
   const oldKey = diagramKey(folder, oldId);
   const newKey = diagramKey(folder, newId);
@@ -502,9 +562,12 @@ function commitRenameLocally(oldId, newId, folder = '', { shareUrl, githubUrl } 
 
   if (wasCurrent) {
     ctx.currentId = newId;
+    if (number !== undefined) ctx.currentNumber = number;
+    if (updatedAt !== undefined) ctx.currentUpdatedAt = updatedAt;
     setQueryDiagramFn(folder, newId);
     ctx.lastShareUrl = shareUrl || buildShareUrl(folder, newId);
-    ctx.lastGithubUrl = githubUrl || getGitHubFileUrl(ctx.user.username, newId, folder);
+    ctx.lastGithubUrl = githubUrl
+      || getGitHubFileUrl(ctx.user.username, newId, folder, ctx.currentNumber);
     shareUrlEl.textContent = ctx.lastShareUrl;
     shareUrlEl.title = ctx.lastShareUrl;
     updateSaveHelpContentFn();
@@ -530,6 +593,8 @@ async function renameDiagram(oldId, newId, folder = '') {
     commitRenameLocally(oldId, newId, folder, {
       shareUrl: data.shareUrl,
       githubUrl: data.githubUrl,
+      number: data.number,
+      updatedAt: data.updatedAt,
     });
     endSync('rename', folder, oldId);
     await loadDiagramList();
@@ -568,9 +633,12 @@ async function moveDiagram(id, fromFolder = '', toFolder = '') {
 
     if (wasCurrent) {
       ctx.currentFolder = toFolder || '';
+      if (data.number !== undefined) ctx.currentNumber = data.number;
+      if (data.updatedAt !== undefined) ctx.currentUpdatedAt = data.updatedAt;
       setQueryDiagramFn(ctx.currentFolder, ctx.currentId);
       ctx.lastShareUrl = data.shareUrl || buildShareUrl(ctx.currentFolder, ctx.currentId);
-      ctx.lastGithubUrl = data.githubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder);
+      ctx.lastGithubUrl = data.githubUrl
+        || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
       shareUrlEl.textContent = ctx.lastShareUrl;
       shareUrlEl.title = ctx.lastShareUrl;
       updateSaveHelpContentFn();
@@ -673,12 +741,17 @@ async function loadStaticExample() {
   if (!res.ok) throw new Error('Failed to load example');
 
   suppressAutoSave = true;
+  clearAutoSaveTimer();
   clearContentDirty();
-  ctx.editor.setValue(await res.text());
+  const text = await res.text();
+  ctx.editor.setValue(text);
+  syncBaseline(text);
   suppressAutoSave = false;
   syncLayoutSelectFromCodeFn();
   ctx.currentId = null;
   ctx.currentFolder = '';
+  ctx.currentNumber = null;
+  ctx.currentUpdatedAt = null;
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   setQueryDiagramFn('', null);
@@ -719,6 +792,8 @@ async function loadExample() {
         code,
         shareUrl: ctx.lastShareUrl,
         githubUrl: ctx.lastGithubUrl,
+        number: ctx.currentNumber,
+        updatedAt: ctx.currentUpdatedAt,
       });
       showStatusFn('已打开示例');
       return;

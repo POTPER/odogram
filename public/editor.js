@@ -1,6 +1,6 @@
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from 'https://esm.sh/@codemirror/view@6.38.6?deps=@codemirror/state@6.5.2';
-import { EditorState } from 'https://esm.sh/@codemirror/state@6.5.2';
-import { defaultKeymap, indentWithTab } from 'https://esm.sh/@codemirror/commands@6.8.1?deps=@codemirror/state@6.5.2';
+import { EditorState, Transaction } from 'https://esm.sh/@codemirror/state@6.5.2';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from 'https://esm.sh/@codemirror/commands@6.8.1?deps=@codemirror/state@6.5.2';
 import { syntaxHighlighting, HighlightStyle, StreamLanguage, LanguageSupport } from 'https://esm.sh/@codemirror/language@6.11.3?deps=@codemirror/state@6.5.2,@codemirror/view@6.38.6';
 import { Tag } from 'https://esm.sh/@lezer/highlight@1.2.3';
 
@@ -178,7 +178,8 @@ export function createMermaidEditor(parent, { initialDoc = '', onChange } = {}) 
       EditorView.lineWrapping,
       mermaidSupport,
       editorDarkTheme,
-      keymap.of([indentWithTab, ...defaultKeymap]),
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged && onChange) onChange();
       }),
@@ -197,6 +198,7 @@ export function createMermaidEditor(parent, { initialDoc = '', onChange } = {}) 
       if (current === text) return;
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: text },
+        annotations: Transaction.addToHistory.of(false),
       });
     },
     focus() {

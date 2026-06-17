@@ -1,51 +1,50 @@
-const REPO_NAME = 'odogram-diagrams';
-const BRANCH = 'main';
-const DIAGRAMS_DIR = 'diagrams';
+import { serializeFrontmatter, parseFrontmatter, normalizeFolder } from './frontmatter.js';
+import { DIAGRAM_LABEL, fetchAllDiagrams } from './github-graphql.js';
+import {
+  GitHubError,
+  createIssue,
+  ensureLabel,
+  updateIssue,
+} from './github-rest.js';
+
+export const REPO_NAME = 'odogram-diagrams';
+export { normalizeFolder };
+
+const GH_HEADERS = {
+  Accept: 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28',
+  'User-Agent': 'odogram',
+};
 
 function githubHeaders(token) {
   return {
+    ...GH_HEADERS,
     Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'User-Agent': 'odogram',
-    'X-GitHub-Api-Version': '2022-11-28',
   };
 }
 
-export function normalizeFolder(folder) {
-  if (!folder) return '';
-  return folder;
-}
-
-export function filePath(folder, id) {
+function diagramKey(folder, id) {
   const f = normalizeFolder(folder);
-  if (f) {
-    return `${DIAGRAMS_DIR}/${f}/${id}.mmd`;
-  }
-  return `${DIAGRAMS_DIR}/${id}.mmd`;
+  return f ? `${f}/${id}` : id;
 }
 
-function encodeRepoPath(path) {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-
-function parseDiagramPath(path) {
-  if (!path.startsWith(`${DIAGRAMS_DIR}/`) || !path.endsWith('.mmd')) {
-    return null;
-  }
-
-  const relative = path.slice(`${DIAGRAMS_DIR}/`.length);
-  const slash = relative.lastIndexOf('/');
-  if (slash === -1) {
-    return {
-      folder: '',
-      id: relative.replace(/\.mmd$/, ''),
-    };
-  }
-
+function toDiagramEntry(username, item) {
   return {
-    folder: relative.slice(0, slash),
-    id: relative.slice(slash + 1).replace(/\.mmd$/, ''),
+    id: item.id,
+    folder: item.folder || '',
+    number: item.number,
+    updatedAt: item.updatedAt,
+    url: getGitHubIssueUrl(username, item.number),
   };
+}
+
+export function getGitHubIssueUrl(username, number) {
+  return `https://github.com/${username}/${REPO_NAME}/issues/${number}`;
+}
+
+export function getGitHubFileUrl(username, id, folder = '', number) {
+  if (number) return getGitHubIssueUrl(username, number);
+  return `https://github.com/${username}/${REPO_NAME}/issues`;
 }
 
 export async function ensureRepo(token, username) {
@@ -72,6 +71,8 @@ export async function ensureRepo(token, username) {
       const err = await createRes.text();
       throw new Error(`Failed to create repo: ${createRes.status} ${err}`);
     }
+
+    await ensureLabel(token, username, REPO_NAME, DIAGRAM_LABEL);
     return;
   }
 
@@ -79,149 +80,113 @@ export async function ensureRepo(token, username) {
     const err = await res.text();
     throw new Error(`Failed to check repo: ${res.status} ${err}`);
   }
+
+  await ensureLabel(token, username, REPO_NAME, DIAGRAM_LABEL);
 }
 
-async function listContents(token, username, path) {
-  const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}?ref=${BRANCH}`,
-    { headers: githubHeaders(token) },
-  );
-
-  if (res.status === 404) return [];
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to list contents: ${res.status} ${err}`);
-  }
-
-  const data = await res.json();
-  return Array.isArray(data) ? data : [data];
+async function fetchOpenDiagrams(token, username) {
+  await ensureRepo(token, username);
+  return fetchAllDiagrams(token, username, REPO_NAME, { states: ['OPEN'] });
 }
 
-function diagramEntry(username, folder, id) {
-  return {
-    id,
-    folder,
-    path: filePath(folder, id),
-    url: `https://github.com/${username}/${REPO_NAME}/blob/${BRANCH}/${encodeRepoPath(filePath(folder, id))}`,
-    updatedAt: null,
-  };
+function findDiagramByKey(diagrams, folder, id) {
+  const f = normalizeFolder(folder);
+  return diagrams.find((d) => d.id === id && (d.folder || '') === f) ?? null;
 }
 
-async function getFileMeta(token, username, id, folder = '') {
-  const path = filePath(folder, id);
-  const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}?ref=${BRANCH}`,
-    { headers: githubHeaders(token) },
-  );
-
-  if (res.status === 404) return null;
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to get file meta: ${res.status} ${err}`);
-  }
-
-  return res.json();
-}
-
-export async function saveDiagram(token, username, id, code, folder = '') {
+export async function saveDiagram(token, username, id, code, folder = '', expectedUpdatedAt) {
   await ensureRepo(token, username);
 
-  const path = filePath(folder, id);
-  const existing = await getFileMeta(token, username, id, folder);
+  const normalizedFolder = normalizeFolder(folder);
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const existing = findDiagramByKey(diagrams, normalizedFolder, id);
+  const body = serializeFrontmatter(normalizedFolder, code);
 
-  const body = {
-    message: existing ? `Update diagram ${folder ? `${folder}/` : ''}${id}` : `Add diagram ${folder ? `${folder}/` : ''}${id}`,
-    content: btoa(unescape(encodeURIComponent(code))),
-    branch: BRANCH,
+  if (existing) {
+    const issue = await updateIssue(
+      token,
+      username,
+      REPO_NAME,
+      existing.number,
+      { body },
+      expectedUpdatedAt,
+    );
+    return {
+      id,
+      folder: normalizedFolder,
+      number: issue.number,
+      updatedAt: issue.updated_at,
+    };
+  }
+
+  const issue = await createIssue(token, username, REPO_NAME, {
+    title: id,
+    body,
+    labels: [DIAGRAM_LABEL],
+  });
+
+  return {
+    id,
+    folder: normalizedFolder,
+    number: issue.number,
+    updatedAt: issue.updated_at,
   };
-
-  if (existing?.sha) {
-    body.sha = existing.sha;
-  }
-
-  const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}`,
-    {
-      method: 'PUT',
-      headers: {
-        ...githubHeaders(token),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    },
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to save diagram: ${res.status} ${err}`);
-  }
-
-  return res.json();
 }
 
 export async function loadDiagram(token, username, id, folder = '') {
-  const meta = await getFileMeta(token, username, id, folder);
-  if (!meta) return null;
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const match = findDiagramByKey(diagrams, folder, id);
+  if (!match) return null;
+  return match.content ?? '';
+}
 
-  if (meta.content && meta.encoding === 'base64') {
-    const binary = atob(meta.content.replace(/\n/g, ''));
-    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-  }
+export async function loadDiagramDetail(token, username, id, folder = '') {
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const match = findDiagramByKey(diagrams, folder, id);
+  if (!match) return null;
 
-  if (meta.download_url) {
-    const res = await fetch(meta.download_url, {
-      headers: { 'User-Agent': 'odogram' },
-    });
-    if (!res.ok) throw new Error(`Failed to download diagram: ${res.status}`);
-    return res.text();
-  }
-
-  return null;
+  return {
+    id: match.id,
+    folder: match.folder || '',
+    number: match.number,
+    updatedAt: match.updatedAt,
+    code: match.content ?? '',
+  };
 }
 
 export async function deleteDiagram(token, username, id, folder = '') {
-  const meta = await getFileMeta(token, username, id, folder);
-  if (!meta) {
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const match = findDiagramByKey(diagrams, folder, id);
+  if (!match) {
     throw new Error('Not found');
   }
 
-  const path = filePath(folder, id);
-  const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}`,
-    {
-      method: 'DELETE',
-      headers: {
-        ...githubHeaders(token),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: `Delete diagram ${folder ? `${folder}/` : ''}${id}`,
-        sha: meta.sha,
-        branch: BRANCH,
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to delete diagram: ${res.status} ${err}`);
-  }
+  await updateIssue(token, username, REPO_NAME, match.number, { state: 'closed' });
 }
 
 export async function renameDiagram(token, username, oldId, newId, folder = '') {
-  const existing = await getFileMeta(token, username, newId, folder);
-  if (existing) {
-    throw new Error('Diagram id already exists');
-  }
-
-  const code = await loadDiagram(token, username, oldId, folder);
-  if (code === null) {
+  const normalizedFolder = normalizeFolder(folder);
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const existing = findDiagramByKey(diagrams, normalizedFolder, oldId);
+  if (!existing) {
     throw new Error('Not found');
   }
 
-  await saveDiagram(token, username, newId, code, folder);
-  await deleteDiagram(token, username, oldId, folder);
+  const duplicate = findDiagramByKey(diagrams, normalizedFolder, newId);
+  if (duplicate) {
+    throw new Error('Diagram id already exists');
+  }
+
+  const issue = await updateIssue(token, username, REPO_NAME, existing.number, {
+    title: newId,
+  });
+
+  return {
+    id: newId,
+    folder: normalizedFolder,
+    number: issue.number,
+    updatedAt: issue.updated_at,
+  };
 }
 
 export async function moveDiagram(token, username, id, fromFolder = '', toFolder = '') {
@@ -232,44 +197,31 @@ export async function moveDiagram(token, username, id, fromFolder = '', toFolder
     throw new Error('No change');
   }
 
-  const code = await loadDiagram(token, username, id, normalizedFrom);
-  if (code === null) {
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const existing = findDiagramByKey(diagrams, normalizedFrom, id);
+  if (!existing) {
     throw new Error('Not found');
   }
 
-  const existing = await getFileMeta(token, username, id, normalizedTo);
-  if (existing) {
+  const duplicate = findDiagramByKey(diagrams, normalizedTo, id);
+  if (duplicate) {
     throw new Error('Diagram id already exists');
   }
 
-  await saveDiagram(token, username, id, code, normalizedTo);
-  await deleteDiagram(token, username, id, normalizedFrom);
+  const body = serializeFrontmatter(normalizedTo, existing.content ?? '');
+  const issue = await updateIssue(token, username, REPO_NAME, existing.number, { body });
+
+  return {
+    id,
+    folder: normalizedTo,
+    number: issue.number,
+    updatedAt: issue.updated_at,
+  };
 }
 
 export async function listDiagrams(token, username) {
-  await ensureRepo(token, username);
-
-  const rootItems = await listContents(token, username, DIAGRAMS_DIR);
-  const results = [];
-
-  for (const item of rootItems) {
-    if (item.type === 'file' && item.name.endsWith('.mmd')) {
-      results.push(diagramEntry(username, '', item.name.replace(/\.mmd$/, '')));
-      continue;
-    }
-
-    if (item.type === 'dir') {
-      const folder = item.name;
-      const subItems = await listContents(token, username, `${DIAGRAMS_DIR}/${folder}`);
-      for (const sub of subItems) {
-        if (sub.type === 'file' && sub.name.endsWith('.mmd')) {
-          results.push(diagramEntry(username, folder, sub.name.replace(/\.mmd$/, '')));
-        }
-      }
-    }
-  }
-
-  return results.sort((a, b) => {
+  const diagrams = await fetchOpenDiagrams(token, username);
+  return diagrams.map((item) => toDiagramEntry(username, item)).sort((a, b) => {
     const folderCmp = (a.folder || '').localeCompare(b.folder || '');
     if (folderCmp !== 0) return folderCmp;
     return a.id.localeCompare(b.id);
@@ -277,17 +229,35 @@ export async function listDiagrams(token, username) {
 }
 
 export async function fetchPublicDiagram(username, id, folder = '') {
-  const url = `https://raw.githubusercontent.com/${username}/${REPO_NAME}/${BRANCH}/${encodeRepoPath(filePath(folder, id))}`;
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'odogram' },
-  });
+  const normalizedFolder = normalizeFolder(folder);
+  let page = 1;
 
-  if (res.status === 404) return null;
-  if (!res.ok) {
-    throw new Error(`Failed to fetch public diagram: ${res.status}`);
+  while (true) {
+    const res = await fetch(
+      `https://api.github.com/repos/${username}/${REPO_NAME}/issues?labels=${encodeURIComponent(DIAGRAM_LABEL)}&state=open&per_page=100&page=${page}`,
+      { headers: GH_HEADERS },
+    );
+
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new Error(`Failed to fetch public diagram: ${res.status}`);
+    }
+
+    const batch = await res.json();
+    for (const issue of batch) {
+      if (issue.pull_request) continue;
+      if (issue.title !== id) continue;
+      const { folder: issueFolder, content } = parseFrontmatter(issue.body ?? '');
+      if ((issueFolder || '') === normalizedFolder) {
+        return content;
+      }
+    }
+
+    if (batch.length < 100) break;
+    page += 1;
   }
 
-  return res.text();
+  return null;
 }
 
 export function getShareUrl(origin, username, id, folder = '') {
@@ -298,6 +268,4 @@ export function getShareUrl(origin, username, id, folder = '') {
   return `${origin}/view/${encodeURIComponent(username)}/${encodeURIComponent(id)}`;
 }
 
-export function getGitHubFileUrl(username, id, folder = '') {
-  return `https://github.com/${username}/${REPO_NAME}/blob/${BRANCH}/${encodeRepoPath(filePath(folder, id))}`;
-}
+export { GitHubError, diagramKey };

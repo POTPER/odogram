@@ -18,13 +18,15 @@ import {
   fetchPublicDiagram,
   getGitHubFileUrl,
   getShareUrl,
+  GitHubError,
   listDiagrams,
-  loadDiagram,
+  loadDiagramDetail,
   moveDiagram,
   normalizeFolder,
   renameDiagram,
   saveDiagram,
 } from './github.js';
+import { migrateIfNeeded } from './migrate.js';
 
 function escapeHtml(str) {
   return str
@@ -170,7 +172,7 @@ async function handleSave(request, env, session) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { code } = body;
+  const { code, expectedUpdatedAt } = body;
   let { id, folder } = body;
 
   if (!code || typeof code !== 'string') {
@@ -192,16 +194,28 @@ async function handleSave(request, env, session) {
   }
 
   try {
-    await saveDiagram(session.token, session.username, id, code, folder);
+    const saved = await saveDiagram(
+      session.token,
+      session.username,
+      id,
+      code,
+      folder,
+      expectedUpdatedAt,
+    );
     const origin = new URL(request.url).origin;
     return Response.json({
       ok: true,
-      id,
-      folder,
-      shareUrl: getShareUrl(origin, session.username, id, folder),
-      githubUrl: getGitHubFileUrl(session.username, id, folder),
+      id: saved.id,
+      folder: saved.folder,
+      number: saved.number,
+      updatedAt: saved.updatedAt,
+      shareUrl: getShareUrl(origin, session.username, saved.id, saved.folder),
+      githubUrl: getGitHubFileUrl(session.username, saved.id, saved.folder, saved.number),
     });
   } catch (err) {
+    if (err instanceof GitHubError && err.status === 409) {
+      return Response.json({ error: 'Conflict: diagram was modified elsewhere' }, { status: 409 });
+    }
     return Response.json({ error: err.message || 'Save failed' }, { status: 500 });
   }
 }
@@ -223,11 +237,20 @@ async function handleLoad(request, env, session) {
   }
 
   try {
-    const code = await loadDiagram(session.token, session.username, id, folderResult.folder);
-    if (code === null) {
+    const detail = await loadDiagramDetail(session.token, session.username, id, folderResult.folder);
+    if (!detail) {
       return Response.json({ error: 'Not found' }, { status: 404 });
     }
-    return Response.json({ id, folder: folderResult.folder, code });
+    const origin = new URL(request.url).origin;
+    return Response.json({
+      id: detail.id,
+      folder: detail.folder,
+      code: detail.code,
+      number: detail.number,
+      updatedAt: detail.updatedAt,
+      shareUrl: getShareUrl(origin, session.username, detail.id, detail.folder),
+      githubUrl: getGitHubFileUrl(session.username, detail.id, detail.folder, detail.number),
+    });
   } catch (err) {
     return Response.json({ error: err.message || 'Load failed' }, { status: 500 });
   }
@@ -238,6 +261,7 @@ async function handleList(request, env, session) {
   if (denied) return denied;
 
   try {
+    await migrateIfNeeded(session, env.SESSIONS);
     const diagrams = await listDiagrams(session.token, session.username);
     return Response.json({ diagrams });
   } catch (err) {
@@ -276,14 +300,22 @@ async function handleRename(request, env, session) {
   }
 
   try {
-    await renameDiagram(session.token, session.username, oldId, newId, folderResult.folder);
+    const renamed = await renameDiagram(
+      session.token,
+      session.username,
+      oldId,
+      newId,
+      folderResult.folder,
+    );
     const origin = new URL(request.url).origin;
     return Response.json({
       ok: true,
-      id: newId,
-      folder: folderResult.folder,
-      shareUrl: getShareUrl(origin, session.username, newId, folderResult.folder),
-      githubUrl: getGitHubFileUrl(session.username, newId, folderResult.folder),
+      id: renamed.id,
+      folder: renamed.folder,
+      number: renamed.number,
+      updatedAt: renamed.updatedAt,
+      shareUrl: getShareUrl(origin, session.username, renamed.id, renamed.folder),
+      githubUrl: getGitHubFileUrl(session.username, renamed.id, renamed.folder, renamed.number),
     });
   } catch (err) {
     const message = err.message || 'Rename failed';
@@ -359,14 +391,22 @@ async function handleMove(request, env, session) {
   }
 
   try {
-    await moveDiagram(session.token, session.username, id, fromResult.folder, toResult.folder);
+    const moved = await moveDiagram(
+      session.token,
+      session.username,
+      id,
+      fromResult.folder,
+      toResult.folder,
+    );
     const origin = new URL(request.url).origin;
     return Response.json({
       ok: true,
-      id,
-      folder: toResult.folder,
-      shareUrl: getShareUrl(origin, session.username, id, toResult.folder),
-      githubUrl: getGitHubFileUrl(session.username, id, toResult.folder),
+      id: moved.id,
+      folder: moved.folder,
+      number: moved.number,
+      updatedAt: moved.updatedAt,
+      shareUrl: getShareUrl(origin, session.username, moved.id, moved.folder),
+      githubUrl: getGitHubFileUrl(session.username, moved.id, moved.folder, moved.number),
     });
   } catch (err) {
     const message = err.message || 'Move failed';
@@ -471,7 +511,16 @@ export default {
     }
 
     if (pathname === '/auth/me' && request.method === 'GET') {
-      return handleMe(request, env);
+      const meSession = await getSession(request, env);
+      const meResponse = await handleMe(request, env);
+      if (meSession) {
+        try {
+          await migrateIfNeeded(meSession, env.SESSIONS);
+        } catch (err) {
+          console.error('migrateIfNeeded failed:', err);
+        }
+      }
+      return meResponse;
     }
 
     const session = await getSession(request, env);

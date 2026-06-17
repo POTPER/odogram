@@ -3,6 +3,8 @@ export const ctx = {
   user: null,
   currentId: null,
   currentFolder: '',
+  currentNumber: null,
+  currentUpdatedAt: null,
   lastShareUrl: '',
   lastGithubUrl: '',
   lastSvg: '',
