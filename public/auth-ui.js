@@ -24,7 +24,7 @@ function getGitHubPath(username, id) {
 }
 
 export function getGitHubFileUrl(username, id) {
-  return `https://github.com/${username}/odogram-diagrams/blob/main/diagrams/${id}.mmd`;
+  return `https://github.com/${username}/odogram-diagrams/blob/main/diagrams/${encodeURIComponent(id)}.mmd`;
 }
 
 export async function fetchMe() {

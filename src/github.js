@@ -15,6 +15,10 @@ function filePath(id) {
   return `${DIAGRAMS_DIR}/${id}.mmd`;
 }
 
+function encodeRepoPath(path) {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
 export async function ensureRepo(token, username) {
   const res = await fetch(`https://api.github.com/repos/${username}/${REPO_NAME}`, {
     headers: githubHeaders(token),
@@ -51,7 +55,7 @@ export async function ensureRepo(token, username) {
 async function getFileMeta(token, username, id) {
   const path = filePath(id);
   const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`,
+    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}?ref=${BRANCH}`,
     { headers: githubHeaders(token) },
   );
 
@@ -81,7 +85,7 @@ export async function saveDiagram(token, username, id, code) {
   }
 
   const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${path}`,
+    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}`,
     {
       method: 'PUT',
       headers: {
@@ -129,7 +133,7 @@ export async function deleteDiagram(token, username, id) {
 
   const path = filePath(id);
   const res = await fetch(
-    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${path}`,
+    `https://api.github.com/repos/${username}/${REPO_NAME}/contents/${encodeRepoPath(path)}`,
     {
       method: 'DELETE',
       headers: {
@@ -195,7 +199,7 @@ export async function listDiagrams(token, username) {
 }
 
 export async function fetchPublicDiagram(username, id) {
-  const url = `https://raw.githubusercontent.com/${username}/${REPO_NAME}/${BRANCH}/${filePath(id)}`;
+  const url = `https://raw.githubusercontent.com/${username}/${REPO_NAME}/${BRANCH}/${encodeRepoPath(filePath(id))}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'odogram' },
   });
@@ -213,5 +217,5 @@ export function getShareUrl(origin, username, id) {
 }
 
 export function getGitHubFileUrl(username, id) {
-  return `https://github.com/${username}/${REPO_NAME}/blob/${BRANCH}/${filePath(id)}`;
+  return `https://github.com/${username}/${REPO_NAME}/blob/${BRANCH}/${encodeRepoPath(filePath(id))}`;
 }
