@@ -5,6 +5,9 @@ import { promptDiagramName, refreshDiagramIds } from './name-dialog.js';
 const shareUrlEl = document.getElementById('share-url');
 const diagramList = document.getElementById('diagram-list');
 const btnSave = document.getElementById('btn-save');
+const contextMenu = document.getElementById('diagram-context-menu');
+
+const AUTO_SAVE_DELAY_MS = 1000;
 
 let showStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
@@ -12,7 +15,66 @@ let scheduleRenderFn = () => {};
 let syncLayoutSelectFromCodeFn = () => {};
 let setQueryIdFn = () => {};
 let updateSaveHelpContentFn = () => {};
-let renameEditLi = null;
+let suppressAutoSave = false;
+let autoSaveTimer = null;
+let contextMenuTargetId = null;
+
+function hideContextMenu() {
+  if (!contextMenu) return;
+  contextMenu.hidden = true;
+  contextMenuTargetId = null;
+}
+
+function showContextMenu(x, y, diagramId) {
+  if (!contextMenu) return;
+  contextMenuTargetId = diagramId;
+  contextMenu.hidden = false;
+  contextMenu.style.left = `${x}px`;
+  contextMenu.style.top = `${y}px`;
+}
+
+function initContextMenu() {
+  if (!contextMenu) return;
+
+  contextMenu.addEventListener('click', (event) => event.stopPropagation());
+  contextMenu.querySelector('[data-action="rename"]')?.addEventListener('click', async () => {
+    const oldId = contextMenuTargetId;
+    hideContextMenu();
+    if (!oldId) return;
+
+    await refreshDiagramIds();
+    const result = await promptDiagramName({ title: 'Rename diagram', defaultValue: oldId });
+    if (!result) return;
+
+    await renameDiagram(oldId, result.id);
+  });
+
+  document.addEventListener('click', hideContextMenu);
+  document.addEventListener('contextmenu', (event) => {
+    if (!contextMenu.contains(event.target)) hideContextMenu();
+  });
+}
+
+async function flushAutoSave() {
+  if (!autoSaveTimer) return;
+
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+
+  if (ctx.user?.login && ctx.currentId && !suppressAutoSave) {
+    await saveDiagramQuiet();
+  }
+}
+
+function scheduleAutoSave() {
+  if (suppressAutoSave || !ctx.user?.login || !ctx.currentId) return;
+
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    saveDiagramQuiet();
+  }, AUTO_SAVE_DELAY_MS);
+}
 
 async function loadDiagramList() {
   if (!ctx.user?.login) return;
@@ -38,19 +100,12 @@ async function loadDiagramList() {
     btn.classList.toggle('active', item.id === ctx.currentId);
     btn.addEventListener('click', () => loadDiagram(item.id));
 
-    const renameBtn = document.createElement('button');
-    renameBtn.type = 'button';
-    renameBtn.className = 'diagram-rename-btn';
-    renameBtn.title = 'Rename';
-    renameBtn.setAttribute('aria-label', 'Rename');
-    renameBtn.textContent = '✎';
-    renameBtn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      startRenameEdit(li, item.id);
+    li.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      showContextMenu(event.clientX, event.clientY, item.id);
     });
 
     li.appendChild(btn);
-    li.appendChild(renameBtn);
     diagramList.appendChild(li);
   }
 }
@@ -61,6 +116,8 @@ async function loadDiagram(id) {
     return;
   }
 
+  await flushAutoSave();
+
   const res = await fetch(`/api/load?id=${encodeURIComponent(id)}`);
   if (!res.ok) {
     showStatusFn('Failed to load diagram', true);
@@ -69,7 +126,9 @@ async function loadDiagram(id) {
 
   const data = await res.json();
   ctx.currentId = data.id;
+  suppressAutoSave = true;
   ctx.editor.setValue(data.code);
+  suppressAutoSave = false;
   syncLayoutSelectFromCodeFn();
   setQueryIdFn(ctx.currentId);
   ctx.lastShareUrl = `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(ctx.currentId)}`;
@@ -80,14 +139,15 @@ async function loadDiagram(id) {
   showStatusFn(`Loaded ${ctx.currentId}`);
 }
 
-async function saveDiagramWithId(id) {
-  btnSave.disabled = true;
+async function saveDiagramWithId(id, { quiet = false } = {}) {
+  if (!quiet) btnSave.disabled = true;
+
   try {
     const res = await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id,
+        id: id || undefined,
         code: ctx.editor.getValue(),
       }),
     });
@@ -103,14 +163,24 @@ async function saveDiagramWithId(id) {
     ctx.lastGithubUrl = data.githubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId);
     shareUrlEl.textContent = ctx.lastShareUrl;
     shareUrlEl.title = ctx.lastShareUrl;
-    await loadDiagramList();
     updateSaveHelpContentFn();
-    showStatusFn(`Saved to GitHub as ${ctx.currentId}`);
+
+    if (quiet) {
+      showStatusFn('Saved');
+    } else {
+      await loadDiagramList();
+      showStatusFn(`Saved to GitHub as ${ctx.currentId}`);
+    }
   } catch (err) {
     showStatusFn(err.message || 'Save failed', true);
   } finally {
-    btnSave.disabled = false;
+    if (!quiet) btnSave.disabled = false;
   }
+}
+
+async function saveDiagramQuiet() {
+  if (!ctx.user?.login || !ctx.currentId || suppressAutoSave) return;
+  await saveDiagramWithId(ctx.currentId, { quiet: true });
 }
 
 async function saveDiagram() {
@@ -119,16 +189,9 @@ async function saveDiagram() {
     return;
   }
 
-  if (ctx.currentId) {
-    await saveDiagramWithId(ctx.currentId);
-    return;
-  }
-
-  await refreshDiagramIds();
-  const result = await promptDiagramName({ title: 'Diagram name' });
-  if (!result) return;
-
-  await saveDiagramWithId(result.id);
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+  await saveDiagramWithId(ctx.currentId || undefined);
 }
 
 async function newDiagram() {
@@ -137,70 +200,26 @@ async function newDiagram() {
     return;
   }
 
-  await refreshDiagramIds();
-  const result = await promptDiagramName({ title: 'New diagram' });
-  if (!result) return;
+  await flushAutoSave();
 
-  ctx.editor.setValue(NEW_DIAGRAM_TEMPLATE);
-  syncLayoutSelectFromCodeFn();
+  ctx.currentId = null;
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   setQueryIdFn(null);
   shareUrlEl.textContent = '';
+
+  suppressAutoSave = true;
+  ctx.editor.setValue(NEW_DIAGRAM_TEMPLATE);
+  suppressAutoSave = false;
+  syncLayoutSelectFromCodeFn();
   scheduleRenderFn();
   diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
 
-  await saveDiagramWithId(result.id);
-}
-
-function cancelRenameEdit() {
-  if (!renameEditLi) return;
-  const oldId = renameEditLi.dataset.diagramId;
-  const renameBtn = renameEditLi.querySelector('.diagram-rename-btn');
-  const input = renameEditLi.querySelector('.diagram-rename-input');
-  if (input) {
-    const label = document.createElement('span');
-    label.className = 'diagram-item-label';
-    label.textContent = oldId;
-    input.replaceWith(label);
-  }
-  if (renameBtn) renameBtn.hidden = false;
-  renameEditLi = null;
-}
-
-function startRenameEdit(li, oldId) {
-  if (renameEditLi && renameEditLi !== li) cancelRenameEdit();
-
-  const loadBtn = li.querySelector('.diagram-item-btn');
-  const label = loadBtn.querySelector('.diagram-item-label');
-  const renameBtn = li.querySelector('.diagram-rename-btn');
-  if (!label || !renameBtn) return;
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'diagram-rename-input';
-  input.value = oldId;
-  label.replaceWith(input);
-  renameBtn.hidden = true;
-  renameEditLi = li;
-  li.dataset.diagramId = oldId;
-  input.focus();
-  input.select();
-
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      renameDiagram(oldId, input.value.trim());
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      cancelRenameEdit();
-    }
-  });
+  await saveDiagramWithId(undefined);
 }
 
 async function renameDiagram(oldId, newId) {
   if (oldId === newId) {
-    cancelRenameEdit();
     showStatusFn('No change', true);
     return;
   }
@@ -222,8 +241,6 @@ async function renameDiagram(oldId, newId) {
       throw new Error(data.error || 'Rename failed');
     }
 
-    renameEditLi = null;
-
     if (oldId === ctx.currentId) {
       ctx.currentId = newId;
       setQueryIdFn(newId);
@@ -243,9 +260,14 @@ async function renameDiagram(oldId, newId) {
 
 async function loadExample() {
   try {
+    await flushAutoSave();
+
     const res = await fetch('/diagrams/example.mmd');
     if (!res.ok) throw new Error('Failed to load example');
+
+    suppressAutoSave = true;
     ctx.editor.setValue(await res.text());
+    suppressAutoSave = false;
     syncLayoutSelectFromCodeFn();
     ctx.currentId = null;
     ctx.lastShareUrl = '';
@@ -284,6 +306,8 @@ export function initDiagrams({
   setQueryIdFn = setQueryId;
   updateSaveHelpContentFn = updateSaveHelpContent;
 
+  initContextMenu();
+
   return {
     saveDiagram,
     loadExample,
@@ -291,5 +315,6 @@ export function initDiagrams({
     newDiagram,
     loadDiagram,
     loadDiagramList,
+    scheduleAutoSave,
   };
 }

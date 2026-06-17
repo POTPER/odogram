@@ -38,7 +38,7 @@ export function updateSaveHelpContent() {
   if (!ctx.user?.login) {
     html = `
       <p><strong>保存位置（你的 GitHub）</strong></p>
-      <p class="hint">请先 Login with GitHub。登录后点 Save，图表会保存到你自己的仓库，odogram 不存储 diagram 内容。</p>
+      <p class="hint">请先 Login with GitHub。登录后编辑内容会自动保存到你自己的仓库，odogram 不存储 diagram 内容。</p>
       <code class="save-help-path">github.com/{你的用户名}/odogram-diagrams/diagrams/{id}.mmd</code>
     `;
   } else if (ctx.currentId) {
@@ -47,6 +47,7 @@ export function updateSaveHelpContent() {
     const shareUrl = ctx.lastShareUrl || `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(ctx.currentId)}`;
     html = `
       <p><strong>保存位置（你的 GitHub）</strong></p>
+      <p class="hint">编辑后自动保存到此路径。</p>
       <code class="save-help-path">${escapeHtmlFn(path)}</code>
       <div class="save-help-actions">
         <a href="${escapeHtmlFn(githubUrl)}" target="_blank" rel="noopener noreferrer">在 GitHub 打开</a>
@@ -58,7 +59,7 @@ export function updateSaveHelpContent() {
     const path = getGitHubPath(ctx.user.username, null);
     html = `
       <p><strong>保存位置（你的 GitHub）</strong></p>
-      <p class="hint">点 Save 后写入下方仓库。首次保存会自动创建 <code>odogram-diagrams</code> 仓库。</p>
+      <p class="hint">编辑后自动保存到下方仓库。点 Save 可立即保存；首次保存会自动创建 <code>odogram-diagrams</code> 仓库。</p>
       <code class="save-help-path">${escapeHtmlFn(path)}</code>
     `;
   }

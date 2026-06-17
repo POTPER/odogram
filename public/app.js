@@ -31,6 +31,7 @@ const btnNewDiagram = document.getElementById('btn-new-diagram');
 
 let layoutSyncing = false;
 let scheduleRender = () => {};
+let scheduleAutoSave = () => {};
 let previewApi;
 let authApi;
 let diagramApi;
@@ -107,7 +108,12 @@ function bindToolbar() {
 
 async function init() {
   try {
-    ctx.editor = createMermaidEditor(editorRoot, { onChange: () => scheduleRender() });
+    ctx.editor = createMermaidEditor(editorRoot, {
+      onChange: () => {
+        scheduleRender();
+        scheduleAutoSave();
+      },
+    });
   } catch (err) {
     console.error('Editor initialization failed:', err);
     showStatus('Editor failed to load — check console for details', true);
@@ -126,6 +132,7 @@ async function init() {
     setQueryId,
     updateSaveHelpContent: authApi.updateSaveHelpContent,
   });
+  scheduleAutoSave = diagramApi.scheduleAutoSave;
 
   ctx.layoutUI = initLayoutUI();
   bindToolbar();
