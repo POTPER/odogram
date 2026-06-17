@@ -1,6 +1,6 @@
 import { ctx, ID_PATTERN, NEW_DIAGRAM_TEMPLATE } from './app-context.js';
 import { getGitHubFileUrl } from './auth-ui.js';
-import { promptDiagramName, refreshDiagramIds } from './name-dialog.js';
+import { promptDiagramName } from './name-dialog.js';
 
 const shareUrlEl = document.getElementById('share-url');
 const diagramList = document.getElementById('diagram-list');
@@ -20,6 +20,7 @@ let contentDirty = false;
 let autoSaveTimer = null;
 let saveInFlight = false;
 let contextMenuTargetId = null;
+const renameInFlight = new Set();
 
 function hideContextMenu() {
   if (!contextMenu) return;
@@ -56,15 +57,20 @@ function initContextMenu() {
     if (!targetId) return;
 
     if (action === 'rename') {
-      await refreshDiagramIds();
       const result = await promptDiagramName({
-        title: 'Rename diagram',
+        title: '重命名',
         defaultValue: targetId,
         excludeId: targetId,
         allowOverwrite: false,
       });
-      if (!result) return;
-      await renameDiagram(targetId, result.id);
+      if (!result || result.id === targetId) return;
+      if (!ID_PATTERN.test(result.id)) {
+        showStatusFn('名称格式无效', true);
+        return;
+      }
+      const rollback = applyRenameLocally(targetId, result.id);
+      showStatusFn('正在同步…');
+      syncRenameInBackground(targetId, result.id, rollback);
     } else if (action === 'duplicate') {
       await duplicateDiagram(targetId);
     } else if (action === 'delete') {
@@ -141,6 +147,7 @@ async function loadDiagramList() {
   for (const item of diagrams) {
     const li = document.createElement('li');
     li.className = 'diagram-list-item';
+    li.dataset.diagramId = item.id;
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -152,7 +159,7 @@ async function loadDiagramList() {
     li.addEventListener('contextmenu', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      showContextMenu(event.clientX, event.clientY, item.id);
+      showContextMenu(event.clientX, event.clientY, li.dataset.diagramId);
     });
 
     li.appendChild(btn);
@@ -271,16 +278,66 @@ async function newDiagram() {
   await saveDiagramWithId(undefined);
 }
 
-async function renameDiagram(oldId, newId) {
-  if (oldId === newId) {
-    showStatusFn('No change', true);
-    return;
+function findListLabel(diagramId) {
+  for (const label of diagramList.querySelectorAll('.diagram-item-label')) {
+    if (label.textContent === diagramId) return label;
+  }
+  return null;
+}
+
+function applyRenameLocally(oldId, newId) {
+  const wasCurrent = oldId === ctx.currentId;
+  const snapshot = {
+    wasCurrent,
+    currentId: ctx.currentId,
+    lastShareUrl: ctx.lastShareUrl,
+    lastGithubUrl: ctx.lastGithubUrl,
+    diagramIds: new Set(ctx.diagramIds),
+    label: findListLabel(oldId),
+    oldLabelText: oldId,
+  };
+
+  ctx.diagramIds.delete(oldId);
+  ctx.diagramIds.add(newId);
+
+  if (snapshot.label) {
+    snapshot.label.textContent = newId;
+    const li = snapshot.label.closest('.diagram-list-item');
+    if (li) li.dataset.diagramId = newId;
   }
 
-  if (!ID_PATTERN.test(newId)) {
-    showStatusFn('Invalid id format', true);
-    return;
+  if (wasCurrent) {
+    ctx.currentId = newId;
+    setQueryIdFn(newId);
+    ctx.lastShareUrl = `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(newId)}`;
+    ctx.lastGithubUrl = getGitHubFileUrl(ctx.user.username, newId);
+    shareUrlEl.textContent = ctx.lastShareUrl;
+    shareUrlEl.title = ctx.lastShareUrl;
+    updateSaveHelpContentFn();
   }
+
+  return () => {
+    ctx.diagramIds = snapshot.diagramIds;
+    if (snapshot.label) {
+      snapshot.label.textContent = snapshot.oldLabelText;
+      const li = snapshot.label.closest('.diagram-list-item');
+      if (li) li.dataset.diagramId = oldId;
+    }
+    if (snapshot.wasCurrent) {
+      ctx.currentId = snapshot.currentId;
+      setQueryIdFn(snapshot.currentId);
+      ctx.lastShareUrl = snapshot.lastShareUrl;
+      ctx.lastGithubUrl = snapshot.lastGithubUrl;
+      shareUrlEl.textContent = snapshot.lastShareUrl;
+      shareUrlEl.title = snapshot.lastShareUrl;
+      updateSaveHelpContentFn();
+    }
+  };
+}
+
+async function syncRenameInBackground(oldId, newId, rollback) {
+  if (renameInFlight.has(oldId)) return;
+  renameInFlight.add(oldId);
 
   try {
     const res = await fetch('/api/rename', {
@@ -294,20 +351,21 @@ async function renameDiagram(oldId, newId) {
       throw new Error(data.error || 'Rename failed');
     }
 
-    if (oldId === ctx.currentId) {
-      ctx.currentId = newId;
-      setQueryIdFn(newId);
-      ctx.lastShareUrl = data.shareUrl || '';
+    if (newId === ctx.currentId) {
+      ctx.lastShareUrl = data.shareUrl || ctx.lastShareUrl;
       ctx.lastGithubUrl = data.githubUrl || getGitHubFileUrl(ctx.user.username, newId);
       shareUrlEl.textContent = ctx.lastShareUrl;
       shareUrlEl.title = ctx.lastShareUrl;
       updateSaveHelpContentFn();
     }
 
-    await loadDiagramList();
-    showStatusFn(`Renamed to ${newId}. Old share links no longer work.`);
+    showStatusFn(`已重命名为 ${newId}`);
   } catch (err) {
-    showStatusFn(err.message || 'Rename failed', true);
+    rollback();
+    await loadDiagramList();
+    showStatusFn(err.message || '重命名失败', true);
+  } finally {
+    renameInFlight.delete(oldId);
   }
 }
 
@@ -352,9 +410,9 @@ async function duplicateDiagram(id) {
 
     const data = await createDiagramFromCode(code);
     await loadDiagram(data.id);
-    showStatusFn(`Duplicated as ${data.id}`);
+    showStatusFn(`已复制为 ${data.id}`);
   } catch (err) {
-    showStatusFn(err.message || 'Duplicate failed', true);
+    showStatusFn(err.message || '复制失败', true);
   }
 }
 
