@@ -28,6 +28,7 @@ import {
 } from './github.js';
 import { migrateIfNeeded } from './migrate.js';
 import { parseFrontmatter } from './frontmatter.js';
+import { fetchOfficialRoadmap } from './github-projects.js';
 
 function escapeHtml(str) {
   return str
@@ -556,6 +557,23 @@ async function handleView(request, env) {
   }
 }
 
+async function handleOfficialRoadmap(request, env, ctx) {
+  const cache = caches.default;
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const result = await fetchOfficialRoadmap(env);
+  const response = new Response(JSON.stringify(result), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=300',
+    },
+  });
+
+  ctx.waitUntil(cache.put(request, response.clone()));
+  return response;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -610,6 +628,10 @@ export default {
 
     if (pathname === '/api/move' && request.method === 'POST') {
       return handleMove(request, env, session);
+    }
+
+    if (pathname === '/api/official-roadmap' && request.method === 'GET') {
+      return handleOfficialRoadmap(request, env, ctx);
     }
 
     if (pathname.startsWith('/view/') && request.method === 'GET') {

@@ -1548,9 +1548,42 @@ body.is-oproduct .layout-select-wrap {
   border-radius: var(--radius-sm);
 }
 
-.oproduct-deliver-text {
+.oproduct-deliver-text,
+.oproduct-deliver-link {
   flex: 1;
   font-size: 13px;
+}
+
+.oproduct-deliver-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.oproduct-deliver-link:hover {
+  text-decoration: underline;
+}
+
+.oproduct-deliver.status-progress {
+  border-left: 3px solid var(--accent);
+}
+
+.oproduct-deliver.status-done {
+  border-left: 3px solid var(--success);
+}
+
+.oproduct-roadmap-sync {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.oproduct-roadmap-sync a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.oproduct-roadmap-sync a:hover {
+  text-decoration: underline;
 }
 
 .oproduct-journey-layout {

@@ -3,6 +3,7 @@ import { renderTreeView } from './oproduct/render-tree.js';
 import { renderRoadmapView } from './oproduct/render-roadmap.js';
 import { renderJourneyView } from './oproduct/render-journey.js';
 import { VIEWS } from './oproduct/model.js';
+import { hydrateOfficialRoadmap } from './official-roadmap.js';
 
 function escapeHtml(str) {
   return String(str)
@@ -47,6 +48,12 @@ if (!parsed.ok) {
   });
 
   renderView(activeView);
+
+  hydrateOfficialRoadmap(parsed.doc).then((result) => {
+    if (result.ok && activeView === 'roadmap') {
+      renderView('roadmap');
+    }
+  });
 }
 
 document.addEventListener('contextmenu', (event) => {

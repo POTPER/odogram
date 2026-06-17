@@ -3,6 +3,7 @@ import { renderTreeView } from './oproduct/render-tree.js';
 import { renderRoadmapView } from './oproduct/render-roadmap.js';
 import { renderJourneyView } from './oproduct/render-journey.js';
 import { VIEWS } from './oproduct/model.js';
+import { hydrateOfficialRoadmap } from './official-roadmap.js';
 
 const VIEW_STORAGE_KEY = 'odogram-oproduct-view';
 
@@ -79,6 +80,17 @@ export function detachOproductPreview() {
   dispatchFormatChange('mermaid');
 }
 
+function maybeHydrateOfficialRoadmap() {
+  if (!activeDoc || activeDoc.roadmapSource !== 'github') return;
+
+  hydrateOfficialRoadmap(activeDoc).then((result) => {
+    if (!result.ok || !activeContainer) return;
+    if (activeView === 'roadmap') {
+      renderActiveView(activeContainer);
+    }
+  });
+}
+
 export function renderOproductPreview({
   code,
   container,
@@ -106,6 +118,7 @@ export function renderOproductPreview({
   syncViewButtons();
   renderActiveView(container);
   dispatchFormatChange('oproduct');
+  maybeHydrateOfficialRoadmap();
 
   return { ok: true, view: activeView };
 }

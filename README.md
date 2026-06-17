@@ -125,7 +125,34 @@ wrangler.jsonc    Cloudflare Worker config
 | `POST /api/save` | required | Save diagram to GitHub |
 | `GET /api/load?id=` | required | Load diagram from GitHub |
 | `GET /api/list` | required | List user's diagrams |
+| `GET /api/official-roadmap` | public | Official oproduct roadmap from GitHub Project |
 | `GET /view/:user/:id` | public | Read-only share page |
+
+## Official roadmap (GitHub Project)
+
+The default product map (`oproduct-欢迎.oprd`) can sync its **Roadmap** view from a maintainer-owned GitHub Project. Tree and Journey stay in the static `.oprd` file; if the API is unavailable, Roadmap falls back to the handwritten `milestone` / `deliver` blocks.
+
+### Setup
+
+1. Create a **Project v2** on the odogram source repo (not user `odogram-diagrams` repos), e.g. `odogram Roadmap`.
+2. Use **Status** (Todo / In Progress / Done) and **Iteration** fields. Iteration names map to milestones (`P1.5`, `P2`, etc.).
+3. Prefer **Draft issues** for roadmap cards. Real issues are included only when labeled `odogram:roadmap`; issues labeled `odogram:diagram` are always excluded.
+4. Create a PAT with `read:project` scope and configure:
+
+```bash
+npx wrangler secret put GITHUB_OFFICIAL_TOKEN
+```
+
+In `wrangler.jsonc` vars (or `.dev.vars` for local dev):
+
+```env
+OFFICIAL_PROJECT_OWNER=your-github-login
+OFFICIAL_PROJECT_NUMBER=1
+```
+
+5. Ensure `public/diagrams/oproduct-欢迎.oprd` frontmatter includes `roadmap_source: github`.
+
+If `GITHUB_OFFICIAL_TOKEN` or project vars are missing, the site silently uses the static roadmap in the `.oprd` file.
 
 ## License
 

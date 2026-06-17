@@ -8,8 +8,17 @@ function escapeHtml(str) {
 
 function statusLabel(status) {
   if (status === 'done') return 'Done';
+  if (status === 'progress') return 'In Progress';
   if (status === 'deprecated') return 'Deprecated';
   return 'Plan';
+}
+
+function renderDeliverText(deliver) {
+  const text = escapeHtml(deliver.text);
+  if (deliver.url) {
+    return `<a class="oproduct-deliver-link" href="${escapeHtml(deliver.url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  }
+  return `<span class="oproduct-deliver-text">${text}</span>`;
 }
 
 export function renderRoadmapView(doc, container) {
@@ -18,7 +27,17 @@ export function renderRoadmapView(doc, container) {
 
   const header = document.createElement('div');
   header.className = 'oproduct-header';
-  header.innerHTML = `<h2 class="oproduct-title">${escapeHtml(doc.title || 'Roadmap')}</h2>`;
+
+  let headerHtml = `<h2 class="oproduct-title">${escapeHtml(doc.title || 'Roadmap')}</h2>`;
+  if (doc.roadmapMeta?.synced && doc.roadmapMeta.projectUrl) {
+    const projectLabel = escapeHtml(doc.roadmapMeta.projectTitle || 'GitHub Project');
+    headerHtml += `
+      <p class="oproduct-roadmap-sync">
+        Synced from
+        <a href="${escapeHtml(doc.roadmapMeta.projectUrl)}" target="_blank" rel="noopener noreferrer">${projectLabel}</a>
+      </p>`;
+  }
+  header.innerHTML = headerHtml;
   container.appendChild(header);
 
   const milestones = doc.views.roadmap.milestones;
@@ -55,7 +74,7 @@ export function renderRoadmapView(doc, container) {
         li.className = `oproduct-deliver status-${deliver.status}`;
         li.innerHTML = `
           <span class="oproduct-status-pill">${statusLabel(deliver.status)}</span>
-          <span class="oproduct-deliver-text">${escapeHtml(deliver.text)}</span>
+          ${renderDeliverText(deliver)}
         `;
         list.appendChild(li);
       });

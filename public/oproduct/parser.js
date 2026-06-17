@@ -28,6 +28,8 @@ export function parseOproductDocument(source) {
   const fields = parseFrontmatterFields(source);
   const doc = createEmptyDoc(fields.title);
   doc.defaultView = VIEWS.includes(fields.view) ? fields.view : 'tree';
+  doc.roadmapSource = fields.roadmap_source === 'github' ? 'github' : '';
+  doc.roadmapMeta = null;
 
   const body = fields.body;
   if (!body) {
