@@ -16,5 +16,12 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "9b0e9beecb484e76869f769d5fa6739a",
+      "preview_id": "fe91521309d04818a404645570684aef"
+    }
+  ]
 }

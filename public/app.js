@@ -1,5 +1,5 @@
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-import elkLayouts from '/vendor/layout-elk/mermaid-layout-elk.esm.min.mjs';
+import mermaid from 'mermaid';
+import elkLayouts from 'elk-layouts';
 import { cursorDarkTheme } from './theme.js';
 import { createMermaidEditor } from './editor.js';
 import { applyLayoutFrontmatter, LAYOUT_MODES, parseLayoutFromCode } from './layout.js';

@@ -1,4 +1,10 @@
 import {
+  ELK_LAYOUT_INTEGRITY,
+  ELK_LAYOUT_URL,
+  MERMAID_CDN_INTEGRITY,
+  MERMAID_CDN_URL,
+} from './cdn-integrity.js';
+import {
   getSession,
   handleCallback,
   handleLogin,
@@ -26,7 +32,17 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-function viewPageHtml({ username, id, code, origin }) {
+function toBase64Url(bytes) {
+  const bin = String.fromCharCode(...bytes);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function randomDiagramId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function viewPageHtml({ username, id, code, origin, nonce }) {
   const safeUser = escapeHtml(username);
   const safeId = escapeHtml(id);
   const codeJson = JSON.stringify(code).replace(/</g, '\\u003c');
@@ -37,7 +53,19 @@ function viewPageHtml({ username, id, code, origin }) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${safeId} — odogram</title>
-  <style>
+  <script type="importmap" nonce="${nonce}">
+  {
+    "imports": {
+      "mermaid": "${MERMAID_CDN_URL}",
+      "elk-layouts": "${ELK_LAYOUT_URL}"
+    },
+    "integrity": {
+      "${MERMAID_CDN_URL}": "${MERMAID_CDN_INTEGRITY}",
+      "${ELK_LAYOUT_URL}": "${ELK_LAYOUT_INTEGRITY}"
+    }
+  }
+  </script>
+  <style nonce="${nonce}">
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -78,12 +106,13 @@ function viewPageHtml({ username, id, code, origin }) {
   </header>
   <div id="preview"></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    import elkLayouts from '/vendor/layout-elk/mermaid-layout-elk.esm.min.mjs';
+  <script type="module" nonce="${nonce}" crossorigin="anonymous">
+    import mermaid from 'mermaid';
+    import elkLayouts from 'elk-layouts';
 
     mermaid.registerLayoutLoaders(elkLayouts);
     mermaid.initialize({
+      securityLevel: 'strict',
       theme: 'base',
       startOnLoad: false,
       themeVariables: {
@@ -108,7 +137,7 @@ function viewPageHtml({ username, id, code, origin }) {
       const { svg } = await mermaid.render(renderId, code);
       preview.innerHTML = svg;
     } catch (err) {
-      preview.innerHTML = '<div class="error">' + String(err.message || err) + '</div>';
+      preview.innerHTML = '<div class="error">Failed to render diagram</div>';
     }
   </script>
 </body>
@@ -134,7 +163,7 @@ async function handleSave(request, env, session) {
   }
 
   if (!id) {
-    id = crypto.randomUUID().slice(0, 8);
+    id = randomDiagramId();
   }
 
   if (!ID_PATTERN.test(id)) {
@@ -254,18 +283,37 @@ async function handleView(request, env) {
       return new Response('Diagram not found', { status: 404 });
     }
 
+    const nonce = toBase64Url(crypto.getRandomValues(new Uint8Array(16)));
     const html = viewPageHtml({
       username,
       id,
       code,
       origin: url.origin,
+      nonce,
     });
 
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
+      `style-src 'self' 'nonce-${nonce}'`,
+      "img-src 'self' data:",
+      "connect-src 'self'",
+      "font-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join('; ');
+
     return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Security-Policy': csp,
+      },
     });
   } catch (err) {
-    return new Response(err.message || 'Failed to load diagram', { status: 500 });
+    console.error('handleView failed:', err);
+    return new Response('Failed to load diagram', { status: 500 });
   }
 }
 
@@ -283,7 +331,7 @@ export default {
     }
 
     if (pathname === '/auth/logout' && request.method === 'GET') {
-      return handleLogout(request);
+      return handleLogout(request, env);
     }
 
     if (pathname === '/auth/me' && request.method === 'GET') {

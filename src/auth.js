@@ -57,16 +57,41 @@ function cookieFlags(request) {
   return secure ? 'Path=/; HttpOnly; Secure; SameSite=Lax' : 'Path=/; HttpOnly; SameSite=Lax';
 }
 
-export async function createSessionCookie(session, secret, request) {
-  const payload = JSON.stringify({
-    username: session.username,
-    token: session.token,
-    avatar: session.avatar || '',
-    exp: Date.now() + SESSION_MAX_AGE * 1000,
-  });
-  const encoded = toBase64Url(new TextEncoder().encode(payload));
-  const sig = await signPayload(encoded, secret);
-  const value = `${encoded}.${sig}`;
+function sessionKey(sessionId) {
+  return `session:${sessionId}`;
+}
+
+function randomSessionId() {
+  return toBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+function parseSessionCookie(raw) {
+  const dot = raw.lastIndexOf('.');
+  if (dot === -1) return null;
+  return { sessionId: raw.slice(0, dot), sig: raw.slice(dot + 1) };
+}
+
+export async function createSessionCookie(session, env, request) {
+  const secret = env.SESSION_SECRET;
+  if (!secret || !env.SESSIONS) {
+    throw new Error('Session storage not configured');
+  }
+
+  const sessionId = randomSessionId();
+  const exp = Date.now() + SESSION_MAX_AGE * 1000;
+  await env.SESSIONS.put(
+    sessionKey(sessionId),
+    JSON.stringify({
+      username: session.username,
+      token: session.token,
+      avatar: session.avatar || '',
+      exp,
+    }),
+    { expirationTtl: SESSION_MAX_AGE },
+  );
+
+  const sig = await signPayload(sessionId, secret);
+  const value = `${sessionId}.${sig}`;
   return `${SESSION_COOKIE}=${encodeURIComponent(value)}; ${cookieFlags(request)}; Max-Age=${SESSION_MAX_AGE}`;
 }
 
@@ -76,21 +101,24 @@ export async function getSession(request, env) {
   if (!raw) return null;
 
   const secret = env.SESSION_SECRET;
-  if (!secret) return null;
+  if (!secret || !env.SESSIONS) return null;
 
-  const dot = raw.lastIndexOf('.');
-  if (dot === -1) return null;
+  const parsed = parseSessionCookie(raw);
+  if (!parsed) return null;
 
-  const encoded = raw.slice(0, dot);
-  const sig = raw.slice(dot + 1);
-  const valid = await verifyPayload(encoded, sig, secret);
+  const valid = await verifyPayload(parsed.sessionId, parsed.sig, secret);
   if (!valid) return null;
 
+  const data = await env.SESSIONS.get(sessionKey(parsed.sessionId));
+  if (!data) return null;
+
   try {
-    const json = new TextDecoder().decode(fromBase64Url(encoded));
-    const session = JSON.parse(json);
+    const session = JSON.parse(data);
     if (!session.username || !session.token || !session.exp) return null;
-    if (Date.now() > session.exp) return null;
+    if (Date.now() > session.exp) {
+      await env.SESSIONS.delete(sessionKey(parsed.sessionId));
+      return null;
+    }
     return session;
   } catch {
     return null;
@@ -99,6 +127,13 @@ export async function getSession(request, env) {
 
 export function clearSessionCookie(request) {
   return `${SESSION_COOKIE}=; ${cookieFlags(request)}; Max-Age=0`;
+}
+
+async function deleteSessionFromCookie(raw, env) {
+  if (!raw || !env.SESSIONS) return;
+  const parsed = parseSessionCookie(raw);
+  if (!parsed) return;
+  await env.SESSIONS.delete(sessionKey(parsed.sessionId));
 }
 
 function randomState() {
@@ -124,7 +159,7 @@ export function handleLogin(request, env) {
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'repo',
+    scope: 'public_repo',
     state,
   });
 
@@ -202,20 +237,29 @@ export async function handleCallback(request, env) {
   }
 
   const user = await userRes.json();
-  const sessionCookie = await createSessionCookie(
-    {
-      username: user.login,
-      token: tokenData.access_token,
-      avatar: user.avatar_url,
-    },
-    sessionSecret,
-    request,
-  );
-  headers.append('Set-Cookie', sessionCookie);
+  try {
+    const sessionCookie = await createSessionCookie(
+      {
+        username: user.login,
+        token: tokenData.access_token,
+        avatar: user.avatar_url,
+      },
+      env,
+      request,
+    );
+    headers.append('Set-Cookie', sessionCookie);
+  } catch {
+    headers.set('Location', '/?error=oauth_config');
+    return new Response(null, { status: 302, headers });
+  }
+
   return new Response(null, { status: 302, headers });
 }
 
-export function handleLogout(request) {
+export async function handleLogout(request, env) {
+  const cookies = parseCookies(request);
+  await deleteSessionFromCookie(cookies[SESSION_COOKIE], env);
+
   const headers = new Headers({
     Location: '/',
     'Set-Cookie': clearSessionCookie(request),
