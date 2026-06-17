@@ -10,6 +10,7 @@ const contextMenu = document.getElementById('diagram-context-menu');
 const AUTO_SAVE_FALLBACK_MS = 1500;
 
 let showStatusFn = () => {};
+let clearPersistentStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
 let scheduleRenderFn = () => {};
 let syncLayoutSelectFromCodeFn = () => {};
@@ -21,6 +22,96 @@ let autoSaveTimer = null;
 let saveInFlight = false;
 let contextMenuTargetId = null;
 const renameInFlight = new Set();
+const syncRefs = new Map();
+
+function findListItemById(diagramId) {
+  if (!diagramId) return null;
+  for (const li of diagramList.querySelectorAll('.diagram-list-item')) {
+    if (li.dataset.diagramId === diagramId) return li;
+  }
+  return null;
+}
+
+function setListSyncBadge(diagramId, visible) {
+  const li = findListItemById(diagramId);
+  if (!li) return;
+
+  li.classList.toggle('diagram-list-item--syncing', visible);
+  let badge = li.querySelector('.diagram-sync-badge');
+  if (visible) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'diagram-sync-badge';
+      badge.textContent = '同步中';
+      li.appendChild(badge);
+    }
+  } else {
+    badge?.remove();
+  }
+}
+
+function getSyncTotals() {
+  let save = 0;
+  let rename = 0;
+  for (const refs of syncRefs.values()) {
+    save += refs.save;
+    rename += refs.rename;
+  }
+  return { save, rename };
+}
+
+function refreshSyncUI() {
+  const { save, rename } = getSyncTotals();
+  if (save === 0 && rename === 0) {
+    clearPersistentStatusFn();
+    return;
+  }
+
+  let message = '正在保存…';
+  if (save > 0 && rename > 0) message = '正在保存并同步…';
+  else if (rename > 0) message = '正在同步到 GitHub…';
+
+  showStatusFn(message, { persistent: true });
+}
+
+function restoreSyncBadges() {
+  for (const diagramId of syncRefs.keys()) {
+    if (diagramId.startsWith('__')) continue;
+    setListSyncBadge(diagramId, true);
+  }
+}
+
+function beginSync(kind, diagramId) {
+  if (diagramId) {
+    const refs = syncRefs.get(diagramId) || { save: 0, rename: 0 };
+    refs[kind] += 1;
+    syncRefs.set(diagramId, refs);
+    setListSyncBadge(diagramId, true);
+  } else {
+    const key = `__${kind}`;
+    const refs = syncRefs.get(key) || { save: 0, rename: 0 };
+    refs[kind] += 1;
+    syncRefs.set(key, refs);
+  }
+  refreshSyncUI();
+}
+
+function endSync(kind, diagramId) {
+  const key = diagramId || `__${kind}`;
+  const refs = syncRefs.get(key);
+  if (!refs) {
+    refreshSyncUI();
+    return;
+  }
+
+  refs[kind] = Math.max(0, refs[kind] - 1);
+  if (refs.save === 0 && refs.rename === 0) {
+    syncRefs.delete(key);
+    if (diagramId) setListSyncBadge(diagramId, false);
+  }
+
+  refreshSyncUI();
+}
 
 function hideContextMenu() {
   if (!contextMenu) return;
@@ -69,7 +160,7 @@ function initContextMenu() {
         return;
       }
       const rollback = applyRenameLocally(targetId, result.id);
-      showStatusFn('正在同步…');
+      beginSync('rename', result.id);
       syncRenameInBackground(targetId, result.id, rollback);
     } else if (action === 'duplicate') {
       await duplicateDiagram(targetId);
@@ -165,6 +256,8 @@ async function loadDiagramList() {
     li.appendChild(btn);
     diagramList.appendChild(li);
   }
+
+  restoreSyncBadges();
 }
 
 async function loadDiagram(id) {
@@ -200,8 +293,11 @@ async function loadDiagram(id) {
 async function saveDiagramWithId(id, { quiet = false } = {}) {
   if (saveInFlight) return;
 
+  const syncDiagramId = ctx.currentId || id || null;
+
   if (!quiet) btnSave.disabled = true;
   saveInFlight = true;
+  beginSync('save', syncDiagramId);
 
   try {
     const res = await fetch('/api/save', {
@@ -227,13 +323,15 @@ async function saveDiagramWithId(id, { quiet = false } = {}) {
     clearContentDirty();
     updateSaveHelpContentFn();
 
+    endSync('save', syncDiagramId);
     if (quiet) {
-      showStatusFn('Saved');
+      showStatusFn('已保存');
     } else {
       await loadDiagramList();
       showStatusFn(`Saved to GitHub as ${ctx.currentId}`);
     }
   } catch (err) {
+    endSync('save', syncDiagramId);
     showStatusFn(err.message || 'Save failed', true);
   } finally {
     saveInFlight = false;
@@ -359,9 +457,11 @@ async function syncRenameInBackground(oldId, newId, rollback) {
       updateSaveHelpContentFn();
     }
 
+    endSync('rename', newId);
     showStatusFn(`已重命名为 ${newId}`);
   } catch (err) {
     rollback();
+    endSync('rename', newId);
     await loadDiagramList();
     showStatusFn(err.message || '重命名失败', true);
   } finally {
@@ -489,6 +589,7 @@ async function copySource() {
 
 export function initDiagrams({
   showStatus,
+  clearPersistentStatus,
   escapeHtml,
   scheduleRender,
   syncLayoutSelectFromCode,
@@ -496,6 +597,7 @@ export function initDiagrams({
   updateSaveHelpContent,
 }) {
   showStatusFn = showStatus;
+  clearPersistentStatusFn = clearPersistentStatus;
   escapeHtmlFn = escapeHtml;
   scheduleRenderFn = scheduleRender;
   syncLayoutSelectFromCodeFn = syncLayoutSelectFromCode;

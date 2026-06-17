@@ -658,6 +658,30 @@ body.sidebar-open .sidebar.visible {
   gap: 2px;
 }
 
+.diagram-list-item--syncing .diagram-item-label {
+  opacity: 0.75;
+}
+
+.diagram-sync-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.diagram-sync-badge::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: status-spin 0.7s linear infinite;
+}
+
 .diagram-list-item .diagram-item-btn {
   display: flex;
   align-items: center;
@@ -956,9 +980,26 @@ body.is-resizing * {
 }
 
 .status.visible {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--accent);
   color: #fff;
+}
+
+.status.syncing::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: status-spin 0.7s linear infinite;
+}
+
+@keyframes status-spin {
+  to { transform: rotate(360deg); }
 }
 
 .status.error {

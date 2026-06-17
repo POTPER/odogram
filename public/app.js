@@ -37,14 +37,26 @@ let previewApi;
 let authApi;
 let diagramApi;
 
-function showStatus(message, isError = false) {
+function showStatus(message, options = false) {
+  const opts = typeof options === 'boolean' ? { isError: options } : options;
+  const { isError = false, persistent = false } = opts;
+
   statusEl.textContent = message;
   statusEl.classList.add('visible');
   statusEl.classList.toggle('error', isError);
+  statusEl.classList.toggle('syncing', persistent);
+
   clearTimeout(showStatus._timer);
-  showStatus._timer = setTimeout(() => {
-    statusEl.classList.remove('visible', 'error');
-  }, 4000);
+  if (!persistent) {
+    showStatus._timer = setTimeout(() => {
+      statusEl.classList.remove('visible', 'error', 'syncing');
+    }, 4000);
+  }
+}
+
+function clearPersistentStatus() {
+  clearTimeout(showStatus._timer);
+  statusEl.classList.remove('visible', 'error', 'syncing');
 }
 
 function escapeHtml(str) {
@@ -132,6 +144,7 @@ async function init() {
   authApi = initAuthUI({ showStatus, escapeHtml });
   diagramApi = initDiagrams({
     showStatus,
+    clearPersistentStatus,
     escapeHtml,
     scheduleRender: previewApi.scheduleRender,
     syncLayoutSelectFromCode,
