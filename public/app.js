@@ -861,7 +861,14 @@ btnLogout.addEventListener('click', () => {
 });
 
 async function init() {
-  editor = createMermaidEditor(editorRoot, { onChange: scheduleRender });
+  try {
+    editor = createMermaidEditor(editorRoot, { onChange: scheduleRender });
+  } catch (err) {
+    console.error('Editor initialization failed:', err);
+    showStatus('Editor failed to load — check console for details', true);
+    return;
+  }
+
   layoutUI = initLayoutUI();
   initPreviewViewport();
 

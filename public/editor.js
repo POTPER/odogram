@@ -1,8 +1,17 @@
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
-import { defaultKeymap, indentWithTab } from '@codemirror/commands';
-import { syntaxHighlighting, HighlightStyle, StreamLanguage } from '@codemirror/language';
-import { tags } from '@lezer/highlight';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from 'https://esm.sh/@codemirror/view@6.38.6?deps=@codemirror/state@6.5.2';
+import { EditorState } from 'https://esm.sh/@codemirror/state@6.5.2';
+import { defaultKeymap, indentWithTab } from 'https://esm.sh/@codemirror/commands@6.8.1?deps=@codemirror/state@6.5.2';
+import { syntaxHighlighting, HighlightStyle, StreamLanguage, LanguageSupport } from 'https://esm.sh/@codemirror/language@6.11.3?deps=@codemirror/state@6.5.2,@codemirror/view@6.38.6';
+import { Tag } from 'https://esm.sh/@lezer/highlight@1.2.3';
+
+const mermaidTags = {
+  comment: Tag.define(),
+  keyword: Tag.define(),
+  string: Tag.define(),
+  operator: Tag.define(),
+  variable: Tag.define(),
+  meta: Tag.define(),
+};
 
 const KEYWORDS = new Set([
   'flowchart',
@@ -55,12 +64,12 @@ const KEYWORDS = new Set([
 const mermaidLanguage = StreamLanguage.define({
   name: 'mermaid',
   tokenTable: {
-    mmComment: tags.lineComment,
-    mmKeyword: tags.keyword,
-    mmString: tags.string,
-    mmOperator: tags.operator,
-    mmVariable: tags.variableName,
-    mmMeta: tags.meta,
+    mmComment: mermaidTags.comment,
+    mmKeyword: mermaidTags.keyword,
+    mmString: mermaidTags.string,
+    mmOperator: mermaidTags.operator,
+    mmVariable: mermaidTags.variable,
+    mmMeta: mermaidTags.meta,
   },
   startState() {
     return {};
@@ -97,15 +106,19 @@ const mermaidLanguage = StreamLanguage.define({
 });
 
 const mermaidHighlightStyle = HighlightStyle.define([
-  { tag: tags.keyword, color: '#569cd6' },
-  { tag: tags.lineComment, color: '#6a9955', fontStyle: 'italic' },
-  { tag: tags.string, color: '#ce9178' },
-  { tag: tags.operator, color: '#d4d4d4' },
-  { tag: tags.variableName, color: '#cccccc' },
-  { tag: tags.meta, color: '#858585' },
+  { tag: mermaidTags.keyword, color: '#569cd6' },
+  { tag: mermaidTags.comment, color: '#6a9955', fontStyle: 'italic' },
+  { tag: mermaidTags.string, color: '#ce9178' },
+  { tag: mermaidTags.operator, color: '#d4d4d4' },
+  { tag: mermaidTags.variable, color: '#cccccc' },
+  { tag: mermaidTags.meta, color: '#858585' },
 ]);
 
-const cursorDarkTheme = EditorView.theme(
+const mermaidSupport = new LanguageSupport(mermaidLanguage, [
+  syntaxHighlighting(mermaidHighlightStyle, { fallback: true }),
+]);
+
+const editorDarkTheme = EditorView.theme(
   {
     '&': {
       height: '100%',
@@ -163,9 +176,8 @@ export function createMermaidEditor(parent, { initialDoc = '', onChange } = {}) 
       highlightActiveLine(),
       drawSelection(),
       EditorView.lineWrapping,
-      mermaidLanguage,
-      syntaxHighlighting(mermaidHighlightStyle, { fallback: true }),
-      cursorDarkTheme,
+      mermaidSupport,
+      editorDarkTheme,
       keymap.of([indentWithTab, ...defaultKeymap]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged && onChange) onChange();
