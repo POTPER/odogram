@@ -55,12 +55,12 @@ const KEYWORDS = new Set([
 const mermaidLanguage = StreamLanguage.define({
   name: 'mermaid',
   tokenTable: {
-    comment: tags.lineComment,
-    keyword: tags.keyword,
-    string: tags.string,
-    operator: tags.operator,
-    variable: tags.variableName,
-    meta: tags.meta,
+    mmComment: tags.lineComment,
+    mmKeyword: tags.keyword,
+    mmString: tags.string,
+    mmOperator: tags.operator,
+    mmVariable: tags.variableName,
+    mmMeta: tags.meta,
   },
   startState() {
     return {};
@@ -70,25 +70,25 @@ const mermaidLanguage = StreamLanguage.define({
 
     if (stream.match('%%')) {
       stream.skipToEnd();
-      return 'comment';
+      return 'mmComment';
     }
 
     if (stream.match(/"(?:[^"\\]|\\.)*"/) || stream.match(/'(?:[^'\\]|\\.)*'/)) {
-      return 'string';
+      return 'mmString';
     }
 
     if (stream.match(/(?:<-->|--o|--x|==+>|-.->|-->|===|---)/)) {
-      return 'operator';
+      return 'mmOperator';
     }
 
     if (stream.match(/[{}[\]|;:]/)) {
-      return 'meta';
+      return 'mmMeta';
     }
 
     if (stream.match(/[a-zA-Z][\w-]*/)) {
       const word = stream.current();
-      if (KEYWORDS.has(word)) return 'keyword';
-      return 'variable';
+      if (KEYWORDS.has(word)) return 'mmKeyword';
+      return 'mmVariable';
     }
 
     stream.next();
