@@ -20,6 +20,8 @@ import {
   getShareUrl,
   listDiagrams,
   loadDiagram,
+  moveDiagram,
+  normalizeFolder,
   renameDiagram,
   saveDiagram,
 } from './github.js';
@@ -43,9 +45,21 @@ function randomDiagramId() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function viewPageHtml({ username, id, code, origin, nonce }) {
+function parseFolderParam(folder) {
+  if (folder === null || folder === undefined || folder === '') {
+    return { folder: '' };
+  }
+  if (typeof folder !== 'string' || !ID_PATTERN.test(folder)) {
+    return { error: 'Invalid folder format' };
+  }
+  return { folder };
+}
+
+function viewPageHtml({ username, id, folder, code, origin, nonce }) {
   const safeUser = escapeHtml(username);
   const safeId = escapeHtml(id);
+  const safeFolder = folder ? escapeHtml(folder) : '';
+  const displayPath = folder ? `${safeFolder} / ${safeId}` : safeId;
   const codeJson = JSON.stringify(code).replace(/</g, '\\u003c');
 
   return `<!DOCTYPE html>
@@ -102,8 +116,8 @@ function viewPageHtml({ username, id, code, origin, nonce }) {
 <body>
   <header>
     <a href="/">odogram</a>
-    <span class="meta">${safeUser} / ${safeId}</span>
-    <a href="${escapeHtml(getShareUrl(origin, username, id))}">Share</a>
+    <span class="meta">${safeUser} / ${displayPath}</span>
+    <a href="${escapeHtml(getShareUrl(origin, username, id, folder))}">Share</a>
   </header>
   <div id="preview"></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
@@ -157,11 +171,17 @@ async function handleSave(request, env, session) {
   }
 
   const { code } = body;
-  let { id } = body;
+  let { id, folder } = body;
 
   if (!code || typeof code !== 'string') {
     return Response.json({ error: 'Missing code' }, { status: 400 });
   }
+
+  const folderResult = parseFolderParam(folder);
+  if (folderResult.error) {
+    return Response.json({ error: folderResult.error }, { status: 400 });
+  }
+  folder = folderResult.folder;
 
   if (!id) {
     id = randomDiagramId();
@@ -172,13 +192,14 @@ async function handleSave(request, env, session) {
   }
 
   try {
-    await saveDiagram(session.token, session.username, id, code);
+    await saveDiagram(session.token, session.username, id, code, folder);
     const origin = new URL(request.url).origin;
     return Response.json({
       ok: true,
       id,
-      shareUrl: getShareUrl(origin, session.username, id),
-      githubUrl: getGitHubFileUrl(session.username, id),
+      folder,
+      shareUrl: getShareUrl(origin, session.username, id, folder),
+      githubUrl: getGitHubFileUrl(session.username, id, folder),
     });
   } catch (err) {
     return Response.json({ error: err.message || 'Save failed' }, { status: 500 });
@@ -189,17 +210,24 @@ async function handleLoad(request, env, session) {
   const denied = requireSession(session);
   if (denied) return denied;
 
-  const id = new URL(request.url).searchParams.get('id');
+  const url = new URL(request.url);
+  const id = url.searchParams.get('id');
+  const folderParam = url.searchParams.get('folder');
+  const folderResult = parseFolderParam(folderParam ?? '');
+  if (folderResult.error) {
+    return Response.json({ error: folderResult.error }, { status: 400 });
+  }
+
   if (!id || !ID_PATTERN.test(id)) {
     return Response.json({ error: 'Invalid id' }, { status: 400 });
   }
 
   try {
-    const code = await loadDiagram(session.token, session.username, id);
+    const code = await loadDiagram(session.token, session.username, id, folderResult.folder);
     if (code === null) {
       return Response.json({ error: 'Not found' }, { status: 404 });
     }
-    return Response.json({ id, code });
+    return Response.json({ id, folder: folderResult.folder, code });
   } catch (err) {
     return Response.json({ error: err.message || 'Load failed' }, { status: 500 });
   }
@@ -228,10 +256,15 @@ async function handleRename(request, env, session) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { oldId, newId } = body;
+  const { oldId, newId, folder } = body;
 
   if (!oldId || !newId || typeof oldId !== 'string' || typeof newId !== 'string') {
     return Response.json({ error: 'Invalid id format' }, { status: 400 });
+  }
+
+  const folderResult = parseFolderParam(folder ?? '');
+  if (folderResult.error) {
+    return Response.json({ error: folderResult.error }, { status: 400 });
   }
 
   if (!ID_PATTERN.test(oldId) || !ID_PATTERN.test(newId)) {
@@ -243,13 +276,14 @@ async function handleRename(request, env, session) {
   }
 
   try {
-    await renameDiagram(session.token, session.username, oldId, newId);
+    await renameDiagram(session.token, session.username, oldId, newId, folderResult.folder);
     const origin = new URL(request.url).origin;
     return Response.json({
       ok: true,
       id: newId,
-      shareUrl: getShareUrl(origin, session.username, newId),
-      githubUrl: getGitHubFileUrl(session.username, newId),
+      folder: folderResult.folder,
+      shareUrl: getShareUrl(origin, session.username, newId, folderResult.folder),
+      githubUrl: getGitHubFileUrl(session.username, newId, folderResult.folder),
     });
   } catch (err) {
     const message = err.message || 'Rename failed';
@@ -274,14 +308,19 @@ async function handleDelete(request, env, session) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { id } = body;
+  const { id, folder } = body;
 
   if (!id || typeof id !== 'string' || !ID_PATTERN.test(id)) {
     return Response.json({ error: 'Invalid id' }, { status: 400 });
   }
 
+  const folderResult = parseFolderParam(folder ?? '');
+  if (folderResult.error) {
+    return Response.json({ error: folderResult.error }, { status: 400 });
+  }
+
   try {
-    await deleteDiagram(session.token, session.username, id);
+    await deleteDiagram(session.token, session.username, id, folderResult.folder);
     return Response.json({ ok: true });
   } catch (err) {
     const message = err.message || 'Delete failed';
@@ -292,23 +331,89 @@ async function handleDelete(request, env, session) {
   }
 }
 
+async function handleMove(request, env, session) {
+  const denied = requireSession(session);
+  if (denied) return denied;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { id, fromFolder, toFolder } = body;
+
+  if (!id || typeof id !== 'string' || !ID_PATTERN.test(id)) {
+    return Response.json({ error: 'Invalid id' }, { status: 400 });
+  }
+
+  const fromResult = parseFolderParam(fromFolder ?? '');
+  if (fromResult.error) {
+    return Response.json({ error: fromResult.error }, { status: 400 });
+  }
+
+  const toResult = parseFolderParam(toFolder ?? '');
+  if (toResult.error) {
+    return Response.json({ error: toResult.error }, { status: 400 });
+  }
+
+  try {
+    await moveDiagram(session.token, session.username, id, fromResult.folder, toResult.folder);
+    const origin = new URL(request.url).origin;
+    return Response.json({
+      ok: true,
+      id,
+      folder: toResult.folder,
+      shareUrl: getShareUrl(origin, session.username, id, toResult.folder),
+      githubUrl: getGitHubFileUrl(session.username, id, toResult.folder),
+    });
+  } catch (err) {
+    const message = err.message || 'Move failed';
+    if (message === 'Diagram id already exists') {
+      return Response.json({ error: message }, { status: 409 });
+    }
+    if (message === 'Not found') {
+      return Response.json({ error: message }, { status: 404 });
+    }
+    if (message === 'No change') {
+      return Response.json({ error: message }, { status: 400 });
+    }
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
 async function handleView(request, env) {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
-  // /view/:username/:id
-  if (parts.length !== 3 || parts[0] !== 'view') {
+  // /view/:username/:id  or  /view/:username/:folder/:id
+  if (parts.length < 3 || parts[0] !== 'view') {
     return new Response('Not found', { status: 404 });
   }
 
   const username = decodeURIComponent(parts[1]);
-  const id = decodeURIComponent(parts[2]);
+  let folder = '';
+  let id;
+
+  if (parts.length === 3) {
+    id = decodeURIComponent(parts[2]);
+  } else if (parts.length === 4) {
+    folder = decodeURIComponent(parts[2]);
+    id = decodeURIComponent(parts[3]);
+  } else {
+    return new Response('Not found', { status: 404 });
+  }
 
   if (!ID_PATTERN.test(id) || !/^[a-zA-Z0-9-]+$/.test(username)) {
     return new Response('Invalid path', { status: 400 });
   }
 
+  if (folder && !ID_PATTERN.test(folder)) {
+    return new Response('Invalid path', { status: 400 });
+  }
+
   try {
-    const code = await fetchPublicDiagram(username, id);
+    const code = await fetchPublicDiagram(username, id, folder);
     if (code === null) {
       return new Response('Diagram not found', { status: 404 });
     }
@@ -317,6 +422,7 @@ async function handleView(request, env) {
     const html = viewPageHtml({
       username,
       id,
+      folder: normalizeFolder(folder),
       code,
       origin: url.origin,
       nonce,
@@ -388,6 +494,10 @@ export default {
 
     if (pathname === '/api/delete' && request.method === 'POST') {
       return handleDelete(request, env, session);
+    }
+
+    if (pathname === '/api/move' && request.method === 'POST') {
+      return handleMove(request, env, session);
     }
 
     if (pathname.startsWith('/view/') && request.method === 'GET') {

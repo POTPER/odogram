@@ -1,11 +1,31 @@
-flowchart LR
-  subgraph editor [Odogram Editor]
-    A[Write Mermaid] --> B[Live Preview]
-    B --> C[Save to GitHub]
+flowchart TB
+  subgraph welcomeBlock [Welcome 欢迎]
+    intro["odogram — Cursor-style Mermaid Editor<br/>Cursor 风格 Mermaid 编辑器"]
+    storage["Diagrams live in YOUR GitHub<br/>图表保存在你自己的 GitHub"]
   end
 
-  subgraph github [Your GitHub]
-    D[odogram-diagrams/diagrams/*.mmd]
+  subgraph editBlock [Edit 编辑]
+    openSite["Open odogram / 打开站点"] --> writeCode["Write Mermaid in Source / 左侧编写源码"]
+    writeCode --> livePreview["Live Preview / 右侧实时预览"]
+    livePreview --> pickLayout["Layout: Default or Orthogonal / 选择布局"]
+    pickLayout --> livePreview
   end
 
-  C --> D
+  subgraph saveBlock [Save and Share 保存与分享]
+    signIn["Sign in with GitHub / GitHub 登录"] --> clickSave["Click Save / 点击保存"]
+    clickSave --> nameDiagram["Name your diagram / 输入图表名称"]
+    nameDiagram --> githubRepo["username/odogram-diagrams/diagrams/id.mmd"]
+    githubRepo --> shareLink["Share: /view/username/id / 分享链接"]
+  end
+
+  subgraph extrasBlock [More 更多功能]
+    copyBtn["Copy source / 复制源码"]
+    dlBtn["Download SVG / 导出 SVG"]
+    listBtn["My Diagrams sidebar / 侧边栏管理"]
+    newBtn["New diagram / 新建图表"]
+    exBtn["Example button / 重新加载本示例"]
+  end
+
+  intro --> openSite
+  storage --> signIn
+  livePreview --> signIn

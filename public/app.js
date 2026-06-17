@@ -85,16 +85,26 @@ function handleLayoutChange() {
   showStatus(`Layout: ${LAYOUT_MODES[layout]}`);
 }
 
-function getQueryId() {
-  return new URLSearchParams(window.location.search).get('id');
+function getQueryDiagram() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    id: params.get('id'),
+    folder: params.get('folder') || '',
+  };
 }
 
-function setQueryId(id) {
+function setQueryDiagram(folder, id) {
   const url = new URL(window.location.href);
   if (id) {
     url.searchParams.set('id', id);
+    if (folder) {
+      url.searchParams.set('folder', folder);
+    } else {
+      url.searchParams.delete('folder');
+    }
   } else {
     url.searchParams.delete('id');
+    url.searchParams.delete('folder');
   }
   window.history.replaceState({}, '', url);
 }
@@ -148,7 +158,7 @@ async function init() {
     escapeHtml,
     scheduleRender: previewApi.scheduleRender,
     syncLayoutSelectFromCode,
-    setQueryId,
+    setQueryDiagram,
     updateSaveHelpContent: authApi.updateSaveHelpContent,
   });
   scheduleAutoSave = diagramApi.scheduleAutoSave;
@@ -172,9 +182,9 @@ async function init() {
   ctx.user = await authApi.fetchMe();
   authApi.updateAuthUI();
 
-  const queryId = getQueryId();
+  const { id: queryId, folder: queryFolder } = getQueryDiagram();
   if (queryId && ctx.user?.login) {
-    await diagramApi.loadDiagram(queryId);
+    await diagramApi.loadDiagram(queryId, queryFolder);
   } else {
     await diagramApi.loadExample();
   }

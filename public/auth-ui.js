@@ -18,13 +18,18 @@ let userMenuOpen = false;
 let showStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
 
-function getGitHubPath(username, id) {
+function getGitHubPath(username, id, folder = '') {
   const base = `github.com/${username}/odogram-diagrams/diagrams/`;
-  return id ? `${base}${id}.mmd` : `${base}{id}.mmd`;
+  if (!id) return `${base}{folder}/{id}.mmd`;
+  const rel = folder ? `${folder}/${id}.mmd` : `${id}.mmd`;
+  return `${base}${rel}`;
 }
 
-export function getGitHubFileUrl(username, id) {
-  return `https://github.com/${username}/odogram-diagrams/blob/main/diagrams/${encodeURIComponent(id)}.mmd`;
+export function getGitHubFileUrl(username, id, folder = '') {
+  const rel = folder
+    ? `${encodeURIComponent(folder)}/${encodeURIComponent(id)}.mmd`
+    : `${encodeURIComponent(id)}.mmd`;
+  return `https://github.com/${username}/odogram-diagrams/blob/main/diagrams/${rel}`;
 }
 
 export async function fetchMe() {
@@ -42,9 +47,13 @@ export function updateSaveHelpContent() {
       <code class="save-help-path">github.com/{你的用户名}/odogram-diagrams/diagrams/{id}.mmd</code>
     `;
   } else if (ctx.currentId) {
-    const path = getGitHubPath(ctx.user.username, ctx.currentId);
-    const githubUrl = ctx.lastGithubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId);
-    const shareUrl = ctx.lastShareUrl || `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(ctx.currentId)}`;
+    const path = getGitHubPath(ctx.user.username, ctx.currentId, ctx.currentFolder);
+    const githubUrl = ctx.lastGithubUrl || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder);
+    const shareUrl = ctx.lastShareUrl || (
+      ctx.currentFolder
+        ? `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(ctx.currentFolder)}/${encodeURIComponent(ctx.currentId)}`
+        : `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(ctx.currentId)}`
+    );
     html = `
       <p><strong>保存位置（你的 GitHub）</strong></p>
       <p class="hint">编辑后自动保存到此路径。</p>

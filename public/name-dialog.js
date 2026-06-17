@@ -1,4 +1,4 @@
-import { ctx, ID_FORMAT_HINT, ID_PATTERN } from './app-context.js';
+import { ctx, diagramKey, ID_FORMAT_HINT, ID_PATTERN } from './app-context.js';
 
 const nameDialogBackdrop = document.getElementById('name-dialog-backdrop');
 const nameDialog = document.getElementById('name-dialog');
@@ -22,7 +22,7 @@ function validateDiagramId(id) {
 
 function isDiagramIdTaken(id) {
   if (nameDialogExcludeId && id === nameDialogExcludeId) return false;
-  return ctx.diagramIds.has(id);
+  return ctx.diagramIds.has(diagramKey(ctx.currentFolder, id));
 }
 
 function setNameDialogError(message) {
@@ -87,7 +87,7 @@ export async function refreshDiagramIds() {
   if (!res.ok) return;
 
   const { diagrams } = await res.json();
-  ctx.diagramIds = new Set(diagrams.map((item) => item.id));
+  ctx.diagramIds = new Set(diagrams.map((item) => diagramKey(item.folder, item.id)));
 }
 
 export function promptDiagramName({
