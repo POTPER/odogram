@@ -7,8 +7,6 @@ const diagramList = document.getElementById('diagram-list');
 const btnSave = document.getElementById('btn-save');
 const contextMenu = document.getElementById('diagram-context-menu');
 
-const AUTO_SAVE_FALLBACK_MS = 1500;
-
 let showStatusFn = () => {};
 let clearPersistentStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
@@ -18,10 +16,8 @@ let setQueryIdFn = () => {};
 let updateSaveHelpContentFn = () => {};
 let suppressAutoSave = false;
 let contentDirty = false;
-let autoSaveTimer = null;
 let saveInFlight = false;
 let contextMenuTargetId = null;
-const renameInFlight = new Set();
 const syncRefs = new Map();
 
 function findListItemById(diagramId) {
@@ -127,11 +123,6 @@ function showContextMenu(x, y, diagramId) {
   contextMenu.style.top = `${y}px`;
 }
 
-function cancelPendingAutoSave() {
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer = null;
-}
-
 function initContextMenu() {
   if (!contextMenu) return;
 
@@ -159,9 +150,7 @@ function initContextMenu() {
         showStatusFn('名称格式无效', true);
         return;
       }
-      const rollback = applyRenameLocally(targetId, result.id);
-      beginSync('rename', result.id);
-      syncRenameInBackground(targetId, result.id, rollback);
+      await renameDiagram(targetId, result.id);
     } else if (action === 'duplicate') {
       await duplicateDiagram(targetId);
     } else if (action === 'delete') {
@@ -190,9 +179,6 @@ function clearContentDirty() {
 }
 
 async function flushAutoSave() {
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer = null;
-
   if (contentDirty && ctx.user?.login && ctx.currentId && !suppressAutoSave) {
     await saveIfDirty({ quiet: true });
   }
@@ -200,12 +186,7 @@ async function flushAutoSave() {
 
 function scheduleAutoSave() {
   if (suppressAutoSave || !ctx.user?.login || !ctx.currentId) return;
-
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer = setTimeout(() => {
-    autoSaveTimer = null;
-    saveIfDirty({ quiet: true });
-  }, AUTO_SAVE_FALLBACK_MS);
+  saveIfDirty({ quiet: true });
 }
 
 function onPreviewRendered() {
@@ -217,8 +198,6 @@ async function saveIfDirty({ quiet = true } = {}) {
     return;
   }
 
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer = null;
   await saveDiagramWithId(ctx.currentId, { quiet });
 }
 
@@ -336,6 +315,9 @@ async function saveDiagramWithId(id, { quiet = false } = {}) {
   } finally {
     saveInFlight = false;
     if (!quiet) btnSave.disabled = false;
+    if (contentDirty && quiet) {
+      saveIfDirty({ quiet: true });
+    }
   }
 }
 
@@ -345,8 +327,6 @@ async function saveDiagram() {
     return;
   }
 
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer = null;
   contentDirty = true;
   await saveDiagramWithId(ctx.currentId || undefined);
 }
@@ -383,59 +363,33 @@ function findListLabel(diagramId) {
   return null;
 }
 
-function applyRenameLocally(oldId, newId) {
+function commitRenameLocally(oldId, newId, { shareUrl, githubUrl } = {}) {
   const wasCurrent = oldId === ctx.currentId;
-  const snapshot = {
-    wasCurrent,
-    currentId: ctx.currentId,
-    lastShareUrl: ctx.lastShareUrl,
-    lastGithubUrl: ctx.lastGithubUrl,
-    diagramIds: new Set(ctx.diagramIds),
-    label: findListLabel(oldId),
-    oldLabelText: oldId,
-  };
 
   ctx.diagramIds.delete(oldId);
   ctx.diagramIds.add(newId);
 
-  if (snapshot.label) {
-    snapshot.label.textContent = newId;
-    const li = snapshot.label.closest('.diagram-list-item');
+  const label = findListLabel(oldId);
+  if (label) {
+    label.textContent = newId;
+    const li = label.closest('.diagram-list-item');
     if (li) li.dataset.diagramId = newId;
   }
 
   if (wasCurrent) {
     ctx.currentId = newId;
     setQueryIdFn(newId);
-    ctx.lastShareUrl = `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(newId)}`;
-    ctx.lastGithubUrl = getGitHubFileUrl(ctx.user.username, newId);
+    ctx.lastShareUrl = shareUrl || `${window.location.origin}/view/${encodeURIComponent(ctx.user.username)}/${encodeURIComponent(newId)}`;
+    ctx.lastGithubUrl = githubUrl || getGitHubFileUrl(ctx.user.username, newId);
     shareUrlEl.textContent = ctx.lastShareUrl;
     shareUrlEl.title = ctx.lastShareUrl;
     updateSaveHelpContentFn();
   }
-
-  return () => {
-    ctx.diagramIds = snapshot.diagramIds;
-    if (snapshot.label) {
-      snapshot.label.textContent = snapshot.oldLabelText;
-      const li = snapshot.label.closest('.diagram-list-item');
-      if (li) li.dataset.diagramId = oldId;
-    }
-    if (snapshot.wasCurrent) {
-      ctx.currentId = snapshot.currentId;
-      setQueryIdFn(snapshot.currentId);
-      ctx.lastShareUrl = snapshot.lastShareUrl;
-      ctx.lastGithubUrl = snapshot.lastGithubUrl;
-      shareUrlEl.textContent = snapshot.lastShareUrl;
-      shareUrlEl.title = snapshot.lastShareUrl;
-      updateSaveHelpContentFn();
-    }
-  };
 }
 
-async function syncRenameInBackground(oldId, newId, rollback) {
-  if (renameInFlight.has(oldId)) return;
-  renameInFlight.add(oldId);
+async function renameDiagram(oldId, newId) {
+  await flushAutoSave();
+  beginSync('rename', oldId);
 
   try {
     const res = await fetch('/api/rename', {
@@ -449,23 +403,15 @@ async function syncRenameInBackground(oldId, newId, rollback) {
       throw new Error(data.error || 'Rename failed');
     }
 
-    if (newId === ctx.currentId) {
-      ctx.lastShareUrl = data.shareUrl || ctx.lastShareUrl;
-      ctx.lastGithubUrl = data.githubUrl || getGitHubFileUrl(ctx.user.username, newId);
-      shareUrlEl.textContent = ctx.lastShareUrl;
-      shareUrlEl.title = ctx.lastShareUrl;
-      updateSaveHelpContentFn();
-    }
-
-    endSync('rename', newId);
+    commitRenameLocally(oldId, newId, {
+      shareUrl: data.shareUrl,
+      githubUrl: data.githubUrl,
+    });
+    endSync('rename', oldId);
     showStatusFn(`已重命名为 ${newId}`);
   } catch (err) {
-    rollback();
-    endSync('rename', newId);
-    await loadDiagramList();
+    endSync('rename', oldId);
     showStatusFn(err.message || '重命名失败', true);
-  } finally {
-    renameInFlight.delete(oldId);
   }
 }
 
@@ -523,10 +469,6 @@ async function removeDiagram(id) {
   }
 
   if (!confirm(`Delete "${id}"?`)) return;
-
-  if (id === ctx.currentId) {
-    cancelPendingAutoSave();
-  }
 
   try {
     const res = await fetch('/api/delete', {
