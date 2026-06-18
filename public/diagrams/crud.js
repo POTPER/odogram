@@ -29,6 +29,7 @@ export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl
   ctx.currentFolder = folder || '';
   ctx.currentNumber = number ?? null;
   ctx.currentUpdatedAt = updatedAt ?? null;
+  ctx.currentGuestExampleId = null;
   setSuppressAutoSave(true);
   clearAutoSaveTimer();
   clearContentDirty();

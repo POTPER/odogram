@@ -17,6 +17,9 @@ export function loadUrl(folder, id) {
 }
 
 export function isCurrentDiagram(folder, id) {
+  if (!ctx.user?.login) {
+    return ctx.currentGuestExampleId === id;
+  }
   return ctx.currentId === id && (ctx.currentFolder || '') === (folder || '');
 }
 

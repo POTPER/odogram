@@ -2,7 +2,10 @@ import { ctx } from './app-context.js';
 
 const shareUrlEl = document.getElementById('share-url');
 const sidebar = document.getElementById('sidebar');
+const sidebarTitle = document.getElementById('sidebar-title');
+const btnNewDiagram = document.getElementById('btn-new-diagram');
 const btnSave = document.getElementById('btn-save');
+const btnSaveFocus = document.getElementById('btn-save-focus');
 const btnSaveHelp = document.getElementById('btn-save-help');
 const saveHelpPopover = document.getElementById('save-help-popover');
 const saveHelpContent = document.getElementById('save-help-content');
@@ -130,7 +133,11 @@ export function updateAuthUI() {
     btnLogin.hidden = true;
     userMenu.hidden = false;
     btnSave.disabled = false;
+    if (btnSaveFocus) btnSaveFocus.disabled = false;
     sidebar.classList.add('visible');
+    document.body.classList.remove('is-guest-examples');
+    if (sidebarTitle) sidebarTitle.textContent = 'My Diagrams';
+    if (btnNewDiagram) btnNewDiagram.hidden = false;
     userAvatar.src = ctx.user.avatar;
     userAvatar.alt = ctx.user.username;
     userName.textContent = ctx.user.username;
@@ -138,7 +145,11 @@ export function updateAuthUI() {
     btnLogin.hidden = false;
     userMenu.hidden = true;
     btnSave.disabled = true;
-    sidebar.classList.remove('visible');
+    if (btnSaveFocus) btnSaveFocus.disabled = true;
+    sidebar.classList.add('visible');
+    document.body.classList.add('is-guest-examples');
+    if (sidebarTitle) sidebarTitle.textContent = '示例';
+    if (btnNewDiagram) btnNewDiagram.hidden = true;
     setSaveHelpOpen(false);
     setUserMenuOpen(false);
   }

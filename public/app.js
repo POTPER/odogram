@@ -20,6 +20,7 @@ const editorRoot = document.getElementById('editor-root');
 const statusEl = document.getElementById('status');
 const layoutSelect = document.getElementById('layout-select');
 const btnSave = document.getElementById('btn-save');
+const btnSaveFocus = document.getElementById('btn-save-focus');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnExample = document.getElementById('btn-example');
@@ -111,8 +112,19 @@ function setQueryDiagram(folder, id) {
   window.history.replaceState({}, '', url);
 }
 
+function syncDownloadButton(isOproduct) {
+  if (!btnDownload) return;
+  btnDownload.disabled = isOproduct;
+  btnDownload.title = isOproduct
+    ? 'SVG export is only available for Mermaid diagrams'
+    : 'Download SVG';
+}
+
 function bindToolbar() {
   btnSave.addEventListener('click', () => diagramApi.saveDiagram());
+  if (btnSaveFocus) {
+    btnSaveFocus.addEventListener('click', () => diagramApi.saveDiagram());
+  }
   btnUserToggle.addEventListener('click', authApi.toggleUserMenu);
   btnMenuDiagrams.addEventListener('click', () => {
     authApi.setUserMenuOpen(false);
@@ -130,6 +142,7 @@ function bindToolbar() {
     if (layoutSelectWrap) {
       layoutSelectWrap.hidden = isOproduct;
     }
+    syncDownloadButton(isOproduct);
   });
   btnLogin.addEventListener('click', () => {
     window.location.href = '/auth/login';
@@ -219,6 +232,7 @@ async function init() {
     }
     await listPromise;
   } else {
+    diagramApi.loadGuestExampleList();
     try {
       await diagramApi.loadWelcome();
     } catch (err) {

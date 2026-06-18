@@ -11,6 +11,7 @@ export const ctx = {
   layoutUI: null,
   diagramIds: new Set(),
   diagramFolders: [],
+  currentGuestExampleId: null,
 };
 
 export const EXAMPLE_FOLDER = '示例';

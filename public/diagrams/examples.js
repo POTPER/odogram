@@ -9,13 +9,15 @@ import {
 import { openDiagramInEditor, saveDiagramWithId } from './crud.js';
 import { dom, ui } from './registry.js';
 import { loadUrl } from './utils.js';
+import { findGuestExample } from './guest-catalog.js';
+import { updateListActiveState } from './sidebar.js';
 import {
   beginPreviewLoading,
   endPreviewLoading,
   setPreviewLoadingPhase,
 } from '../preview-loading.js';
 
-async function applyStaticSource(text) {
+async function applyStaticSource(text, { guestExampleId = null } = {}) {
   setSuppressAutoSave(true);
   clearAutoSaveTimer();
   clearContentDirty();
@@ -26,12 +28,13 @@ async function applyStaticSource(text) {
   ctx.currentFolder = '';
   ctx.currentNumber = null;
   ctx.currentUpdatedAt = null;
+  ctx.currentGuestExampleId = guestExampleId;
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   ui.setQueryDiagram('', null);
   dom.shareUrlEl.textContent = '';
-  dom.diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
   ui.updateSaveHelpContent();
+  updateListActiveState();
 }
 
 async function renderLoadedSource() {
@@ -40,16 +43,18 @@ async function renderLoadedSource() {
   await ui.waitForPreviewSettled();
 }
 
-export async function loadStaticExample() {
+export async function loadGuestExample({ id, path, label }) {
   ui.clearPreviewCanvas();
   beginPreviewLoading('Loading diagram…');
   try {
+    await flushAutoSave();
     setPreviewLoadingPhase('fetch');
-    const res = await fetch('/diagrams/example.mmd');
-    if (!res.ok) throw new Error('Failed to load example');
+
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`Failed to load ${label || id}`);
 
     const text = await res.text();
-    await applyStaticSource(text);
+    await applyStaticSource(text, { guestExampleId: id });
     ui.syncLayoutSelectFromCode();
     await renderLoadedSource();
   } finally {
@@ -57,23 +62,16 @@ export async function loadStaticExample() {
   }
 }
 
+export async function loadStaticExample() {
+  const item = findGuestExample('example');
+  if (!item) throw new Error('Failed to load example');
+  await loadGuestExample(item);
+}
+
 export async function loadWelcome() {
-  ui.clearPreviewCanvas();
-  beginPreviewLoading('Loading diagram…');
-  try {
-    await flushAutoSave();
-    setPreviewLoadingPhase('fetch');
-
-    const res = await fetch('/diagrams/oproduct-欢迎.oprd');
-    if (!res.ok) throw new Error('Failed to load product map');
-
-    const text = await res.text();
-    await applyStaticSource(text);
-    ui.syncLayoutSelectFromCode();
-    await renderLoadedSource();
-  } finally {
-    endPreviewLoading();
-  }
+  const item = findGuestExample('oproduct-欢迎');
+  if (!item) throw new Error('Failed to load product map');
+  await loadGuestExample(item);
 }
 
 export async function loadProductExample() {
@@ -92,11 +90,13 @@ export async function loadExample() {
     await flushAutoSave();
 
     if (!ctx.user?.login) {
+      const item = findGuestExample('example');
+      if (!item) throw new Error('Failed to load example');
       setPreviewLoadingPhase('fetch');
-      const res = await fetch('/diagrams/example.mmd');
+      const res = await fetch(item.path);
       if (!res.ok) throw new Error('Failed to load example');
       const text = await res.text();
-      await applyStaticSource(text);
+      await applyStaticSource(text, { guestExampleId: item.id });
       ui.syncLayoutSelectFromCode();
       await renderLoadedSource();
       ui.showStatus('Example loaded');

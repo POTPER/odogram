@@ -36,6 +36,10 @@ body.sidebar-open .sidebar.visible {
   border-right: 1px solid var(--border);
 }
 
+body.is-guest-examples .sidebar-new-btn {
+  display: none;
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;

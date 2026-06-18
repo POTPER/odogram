@@ -1,3 +1,4 @@
+import { GUEST_EXAMPLES } from './guest-catalog.js';
 import { ctx, diagramKey, folderLabel, ID_PATTERN } from '../app-context.js';
 import { promptDiagramName } from '../name-dialog.js';
 import { api, dom, state, ui } from './registry.js';
@@ -123,6 +124,23 @@ async function promptTargetFolder({ title, defaultValue = '' } = {}) {
   return { folder };
 }
 
+function createGuestDiagramListItem(item) {
+  const li = document.createElement('li');
+  li.className = 'diagram-list-item';
+  li.dataset.diagramId = item.id;
+  li.dataset.diagramFolder = item.folder || '';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'diagram-item-btn';
+  btn.innerHTML = `<span class="diagram-item-icon" aria-hidden="true">◇</span><span class="diagram-item-label">${ui.escapeHtml(item.label)}</span>`;
+  btn.classList.toggle('active', api.isCurrentDiagram(item.folder, item.id));
+  btn.addEventListener('click', () => api.loadGuestExample(item));
+
+  li.appendChild(btn);
+  return li;
+}
+
 function createDiagramListItem(item) {
   const li = document.createElement('li');
   li.className = 'diagram-list-item';
@@ -144,6 +162,53 @@ function createDiagramListItem(item) {
 
   li.appendChild(btn);
   return li;
+}
+
+export function loadGuestExampleList() {
+  if (ctx.user?.login) return;
+
+  const groups = new Map();
+  for (const item of GUEST_EXAMPLES) {
+    const folder = item.folder || '';
+    if (!groups.has(folder)) groups.set(folder, []);
+    groups.get(folder).push(item);
+  }
+
+  const folderOrder = [...groups.keys()].sort((a, b) => {
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b);
+  });
+  ctx.diagramFolders = folderOrder;
+
+  dom.diagramList.innerHTML = '';
+
+  for (const folder of folderOrder) {
+    const section = document.createElement('li');
+    section.className = 'diagram-folder';
+    section.dataset.folder = folder;
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'diagram-folder-btn';
+    header.setAttribute('aria-expanded', 'true');
+    header.innerHTML = `<span class="diagram-folder-chevron" aria-hidden="true">▾</span><span class="diagram-folder-label">${ui.escapeHtml(folderLabel(folder))}</span>`;
+    header.addEventListener('click', () => {
+      const collapsed = section.classList.toggle('diagram-folder--collapsed');
+      header.setAttribute('aria-expanded', String(!collapsed));
+    });
+
+    const items = document.createElement('ul');
+    items.className = 'diagram-folder-items';
+
+    for (const item of groups.get(folder)) {
+      items.appendChild(createGuestDiagramListItem(item));
+    }
+
+    section.appendChild(header);
+    section.appendChild(items);
+    dom.diagramList.appendChild(section);
+  }
 }
 
 export async function loadDiagramList() {

@@ -5,7 +5,7 @@ import {
 } from './autosave.js';
 import * as crud from './crud.js';
 import * as examples from './examples.js';
-import { initContextMenu, loadDiagramList } from './sidebar.js';
+import { initContextMenu, loadDiagramList, loadGuestExampleList } from './sidebar.js';
 import { isCurrentDiagram } from './utils.js';
 import { wireDiagramApi, ui } from './registry.js';
 
@@ -20,6 +20,7 @@ wireDiagramApi({
   removeDiagram: crud.removeDiagram,
   openDiagramInEditor: crud.openDiagramInEditor,
   loadExample: examples.loadExample,
+  loadGuestExample: examples.loadGuestExample,
   isCurrentDiagram,
 });
 
@@ -52,11 +53,13 @@ export function initDiagrams({
     saveDiagram: crud.saveDiagram,
     loadWelcome: examples.loadWelcome,
     loadExample: examples.loadExample,
+    loadGuestExample: examples.loadGuestExample,
     loadProductExample: examples.loadProductExample,
     copySource: examples.copySource,
     newDiagram: crud.newDiagram,
     loadDiagram: crud.loadDiagram,
     loadDiagramList,
+    loadGuestExampleList,
     scheduleAutoSave,
     markContentDirty,
     onPreviewRendered,

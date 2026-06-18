@@ -29,6 +29,7 @@ export function initLayoutUI() {
   const modeButtons = document.querySelectorAll('[data-workbench-mode]');
   const focusExpandBtn = document.getElementById('btn-focus-expand');
   const expandSourceBtn = document.getElementById('btn-expand-source');
+  const btnSaveFocus = document.getElementById('btn-save-focus');
   const sourceHeaderLabel = document.getElementById('source-header-label');
 
   const savedSplit = localStorage.getItem(SPLIT_KEY);
@@ -65,6 +66,9 @@ export function initLayoutUI() {
     }
     if (expandSourceBtn) {
       expandSourceBtn.hidden = !desktop || currentMode !== 'result';
+    }
+    if (btnSaveFocus) {
+      btnSaveFocus.hidden = !desktop || currentMode !== 'focus';
     }
     if (sourceHeaderLabel) {
       sourceHeaderLabel.textContent = desktop && currentMode === 'result' ? 'Source (compact)' : 'Source';
@@ -125,9 +129,8 @@ export function initLayoutUI() {
   }
 
   function syncSidebarToggle() {
-    const loggedIn = sidebar.classList.contains('visible');
-    sidebarToggle.hidden = !loggedIn;
-    if (!loggedIn) {
+    sidebarToggle.hidden = !sidebar.classList.contains('visible');
+    if (!sidebar.classList.contains('visible')) {
       document.body.classList.remove('sidebar-open');
       updateBackdrop();
       return;
@@ -135,7 +138,8 @@ export function initLayoutUI() {
 
     if (!document.body.dataset.sidebarInitialized) {
       const saved = localStorage.getItem(SIDEBAR_KEY);
-      setSidebarOpen(saved !== '0');
+      const defaultOpen = saved === null ? true : saved !== '0';
+      setSidebarOpen(defaultOpen);
       document.body.dataset.sidebarInitialized = '1';
     }
     updateBackdrop();
