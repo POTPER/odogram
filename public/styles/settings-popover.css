@@ -1,0 +1,220 @@
+body.is-logged-out .toolbar-save-group {
+  display: none !important;
+}
+
+.settings-menu {
+  position: relative;
+}
+
+.settings-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.settings-trigger:hover,
+.settings-trigger.active {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+.settings-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 220;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.settings-heading {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.settings-section-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.settings-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.settings-field select {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.settings-save-info p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-save-info p:last-child {
+  margin-bottom: 0;
+}
+
+.settings-save-info .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.settings-save-info .save-help-path {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--text);
+}
+
+.settings-save-info .save-help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.settings-save-info .save-help-actions a,
+.settings-save-info .save-help-actions button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.settings-save-info .save-help-actions a:hover,
+.settings-save-info .save-help-actions button:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+.settings-account-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.settings-account-avatar {
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.settings-account-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-account-action {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.settings-account-action:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+.settings-account-action.primary {
+  background: var(--primary);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.settings-account-action.primary:hover {
+  background: var(--primary-hover);
+}
+
+.settings-section--disabled .settings-coming-soon {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.settings-section--disabled .settings-coming-soon li {
+  opacity: 0.7;
+}
+
+.toolbar .save-group {
+  gap: 0;
+}

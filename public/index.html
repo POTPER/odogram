@@ -23,22 +23,147 @@
   <div class="app">
     <header class="toolbar">
       <div class="toolbar-brand">
-        <button id="btn-sidebar-toggle" type="button" class="icon-btn" hidden aria-label="Toggle diagrams">
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
-        </button>
-        <a href="/" class="brand-link" title="odogram home">
+        <a href="/" class="brand-link" title="odogram home" aria-label="odogram home">
           <svg class="brand-logo" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="2" y="3" width="9" height="6" rx="1.5" fill="currentColor" opacity="0.9"/>
             <rect x="13" y="15" width="9" height="6" rx="1.5" fill="currentColor"/>
             <path d="M11 6v5h2v3h-4" stroke="currentColor" stroke-width="1.5" fill="none"/>
           </svg>
-          <span class="brand-name">odogram</span>
         </a>
+        <div class="toolbar-doc-info">
+          <div class="toolbar-doc-title-row">
+            <span id="toolbar-doc-title" class="toolbar-doc-title">Untitled</span>
+            <input id="toolbar-doc-title-input" class="toolbar-doc-title-input" hidden
+                   spellcheck="false" autocomplete="off" aria-label="文件名">
+            <button id="btn-toolbar-doc-rename" type="button" class="toolbar-doc-rename-btn"
+                    hidden title="重命名" aria-label="重命名">
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+              </svg>
+            </button>
+          </div>
+          <span id="toolbar-doc-author" class="toolbar-doc-author">访客</span>
+        </div>
       </div>
+
+      <button id="btn-diagrams" type="button" class="toolbar-diagrams-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+        <span id="btn-diagrams-label">示例</span>
+      </button>
 
       <span class="spacer"></span>
 
       <div class="toolbar-group toolbar-account">
+        <button id="btn-ai-assistant" type="button" class="toolbar-ai-btn"
+                title="AI 助手" aria-label="AI 助手">AI 助手</button>
+
+        <div class="save-group toolbar-save-group">
+          <button id="btn-save" type="button" class="primary" disabled title="Save to GitHub">Save</button>
+        </div>
+
+        <div class="share-menu">
+          <button id="btn-share" type="button" class="share-trigger" disabled
+                  aria-haspopup="dialog" aria-expanded="false" title="分享" aria-label="分享">分享</button>
+          <div id="share-popover" class="share-popover popover" hidden>
+            <div class="share-heading">分享</div>
+            <p class="share-hint">只读预览链接，无需登录即可查看。</p>
+            <input id="share-url-input" type="text" class="share-url-input" readonly spellcheck="false">
+            <div class="share-actions">
+              <button id="btn-share-copy" type="button" class="share-action-btn primary">复制链接</button>
+              <a id="btn-share-open" class="share-action-btn" target="_blank" rel="noopener noreferrer">新标签打开</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-menu">
+          <button id="btn-settings" type="button" class="settings-trigger"
+                  aria-haspopup="dialog" aria-expanded="false" title="设置" aria-label="设置">设置</button>
+          <div id="settings-popover" class="settings-popover popover" hidden>
+            <div class="settings-heading">设置</div>
+
+            <section class="settings-section">
+              <h3 class="settings-section-title">保存与同步</h3>
+              <div id="settings-save-info" class="settings-save-info"></div>
+              <p class="settings-hint">编辑后约 2 秒自动保存到 GitHub Issue</p>
+            </section>
+
+            <section class="settings-section">
+              <h3 class="settings-section-title">编辑器</h3>
+              <label class="settings-field layout-select-wrap">
+                Mermaid 布局
+                <select id="layout-select" title="Diagram layout">
+                  <option value="dagre">Default</option>
+                  <option value="elk">Orthogonal</option>
+                </select>
+              </label>
+            </section>
+
+            <section class="settings-section">
+              <h3 class="settings-section-title">账户</h3>
+              <div id="settings-account" class="settings-account"></div>
+            </section>
+
+            <section class="settings-section settings-section--disabled">
+              <h3 class="settings-section-title">即将推出</h3>
+              <ul class="settings-coming-soon">
+                <li>GitLab 账户绑定</li>
+                <li>自动保存间隔</li>
+                <li>主题切换</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+
+        <div class="view-layout-menu">
+          <button id="btn-view-layout" type="button" class="view-layout-trigger"
+                  aria-haspopup="menu" aria-expanded="false" title="切换视图" aria-label="切换视图">
+            <span class="view-layout-icon-svg" aria-hidden="true"></span>
+          </button>
+          <div id="view-layout-popover" class="view-layout-popover popover" hidden>
+            <div class="view-layout-heading">切换视图</div>
+
+            <div class="view-layout-section-label">布局模式</div>
+            <div class="view-layout-icons" role="group" aria-label="布局模式">
+              <button type="button" class="view-layout-icon active" data-workbench-mode="edit"
+                      title="左右分屏" aria-label="左右分屏">
+                <span class="view-layout-icon-svg" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="view-layout-icon" data-workbench-mode="result"
+                      title="上下分屏" aria-label="上下分屏">
+                <span class="view-layout-icon-svg" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="view-layout-icon" data-workbench-mode="focus"
+                      title="仅预览" aria-label="仅预览">
+                <span class="view-layout-icon-svg" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="view-layout-section-label">编辑模式</div>
+            <div class="view-layout-list" role="menu">
+              <button type="button" class="view-layout-item active" data-workbench-mode="edit" role="menuitem">
+                <span class="view-layout-item-label">编辑视图</span>
+                <span class="view-layout-item-hint">左右分屏 · 完整源码</span>
+              </button>
+              <button type="button" class="view-layout-item" data-workbench-mode="result" role="menuitem">
+                <span class="view-layout-item-label">结果视图</span>
+                <span class="view-layout-item-hint">预览在上 · 底栏紧凑源码</span>
+              </button>
+              <button type="button" class="view-layout-item" data-workbench-mode="focus" role="menuitem">
+                <span class="view-layout-item-label">专注视图</span>
+                <span class="view-layout-item-hint">全屏预览 · 沉浸式查看</span>
+              </button>
+              <button type="button" class="view-layout-item view-layout-item--disabled" disabled role="menuitem">
+                <span class="view-layout-item-label">演示模式</span>
+                <span class="view-layout-item-hint">即将推出</span>
+              </button>
+              <button type="button" class="view-layout-item view-layout-item--disabled" disabled role="menuitem">
+                <span class="view-layout-item-label">调试视图</span>
+                <span class="view-layout-item-hint">即将推出</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div id="user-menu" class="user-menu" hidden>
           <button id="btn-user-toggle" type="button" class="user-menu-trigger" aria-haspopup="menu" aria-expanded="false">
             <img id="user-avatar" alt="" width="28" height="28">
@@ -46,34 +171,17 @@
             <svg class="user-menu-chevron" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
           </button>
           <div id="user-menu-popover" class="user-menu-popover popover" hidden role="menu">
-            <button id="btn-menu-diagrams" type="button" class="menu-item" role="menuitem">
-              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
-              My Diagrams
-            </button>
             <button id="btn-logout" type="button" class="menu-item" role="menuitem">
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
               Logout
             </button>
           </div>
         </div>
-        <button id="btn-login" type="button" class="btn-login">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-          <span>Sign in with GitHub</span>
-        </button>
+        <button id="btn-login" type="button" class="toolbar-login-btn" title="登录" aria-label="登录">登录</button>
       </div>
     </header>
 
     <div class="main">
-      <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
-
-      <aside id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-          <h3 id="sidebar-title">My Diagrams</h3>
-          <button id="btn-new-diagram" type="button" class="icon-btn sidebar-new-btn" title="New diagram" aria-label="New diagram">+</button>
-        </div>
-        <ul id="diagram-list" class="diagram-list"></ul>
-      </aside>
-
       <div class="workbench-area">
         <div class="mobile-tabs" role="tablist" aria-label="Editor panels">
           <button id="tab-source" type="button" class="mobile-tab active" role="tab" aria-selected="true">Source</button>
@@ -85,22 +193,7 @@
             <div class="pane-header source-header">
               <span id="source-header-label">Source</span>
               <div class="pane-header-actions source-actions">
-                <div class="save-group">
-                  <button id="btn-save" class="pane-action-btn primary" disabled title="Save to GitHub">Save</button>
-                  <button id="btn-save-help" type="button" class="pane-action-btn" title="保存位置说明" aria-label="Save location help">?</button>
-                  <div id="save-help-popover" class="save-help-popover popover" hidden>
-                    <div id="save-help-content"></div>
-                  </div>
-                </div>
-                <span id="share-url" class="share-url"></span>
                 <button id="btn-copy" type="button" class="pane-action-btn" title="Copy source">Copy</button>
-                <label class="layout-select-wrap">
-                  Layout
-                  <select id="layout-select" title="Diagram layout">
-                    <option value="dagre">Default</option>
-                    <option value="elk">Orthogonal</option>
-                  </select>
-                </label>
                 <button id="btn-example" type="button" class="pane-action-btn" title="Load Mermaid tutorial / 加载 Mermaid 教程">Example</button>
                 <button id="btn-product" type="button" class="pane-action-btn" title="Reload product map / 重新加载产品构成图">Product</button>
                 <button type="button" id="btn-expand-source" class="source-expand-btn" hidden title="Expand to split">Expand to split</button>
@@ -115,16 +208,10 @@
             <div class="pane-header preview-header">
               <span>Preview</span>
               <div class="preview-controls">
-                <button type="button" id="btn-save-focus" class="pane-action-btn primary" hidden disabled title="Save to GitHub">Save</button>
                 <div class="oproduct-view-switch" role="group" aria-label="Product view" hidden>
                   <button type="button" class="mode-btn active" data-oproduct-view="tree" aria-pressed="true" title="Module tree">Tree</button>
                   <button type="button" class="mode-btn" data-oproduct-view="roadmap" aria-pressed="false" title="Roadmap">Roadmap</button>
                   <button type="button" class="mode-btn" data-oproduct-view="journey" aria-pressed="false" title="User journey">Journey</button>
-                </div>
-                <div class="workbench-mode-switch" role="group" aria-label="Workbench mode">
-                  <button type="button" class="mode-btn active" data-workbench-mode="edit" aria-pressed="true" title="Edit — split panes">Edit</button>
-                  <button type="button" class="mode-btn" data-workbench-mode="focus" aria-pressed="false" title="Focus — preview only">Focus</button>
-                  <button type="button" class="mode-btn" data-workbench-mode="result" aria-pressed="false" title="Result — preview with compact source">Result</button>
                 </div>
                 <button type="button" id="btn-zoom-out" title="Zoom out" disabled>−</button>
                 <span id="zoom-label" class="zoom-label">100%</span>
@@ -143,7 +230,48 @@
       </div>
     </div>
 
-    <div id="status" class="status" role="status" aria-live="polite"></div>
+    <footer class="status-bar" role="contentinfo">
+      <div class="status-bar-group status-bar-left">
+        <button type="button" class="status-bar-btn" disabled>Console</button>
+        <button type="button" class="status-bar-btn" disabled>Shortcuts</button>
+        <button id="btn-status-assets" type="button" class="status-bar-btn">资源</button>
+      </div>
+      <div id="status-message" class="status-bar-message" role="status" aria-live="polite"></div>
+      <div class="status-bar-group status-bar-right">
+        <button type="button" class="status-bar-btn" disabled>Export</button>
+        <button type="button" class="status-bar-btn" disabled>Share</button>
+      </div>
+    </footer>
+
+    <div id="assets-panel-backdrop" class="assets-panel-backdrop" hidden>
+      <div id="assets-panel" class="assets-panel" role="dialog" aria-labelledby="assets-panel-title">
+        <header class="assets-panel-header">
+          <h2 id="assets-panel-title">资源</h2>
+          <button id="assets-panel-close" type="button" class="assets-panel-close" aria-label="关闭">×</button>
+        </header>
+        <div class="assets-panel-body">
+          <nav class="assets-panel-nav" aria-label="资源分类">
+            <button type="button" class="assets-nav-item active" disabled>你的文件</button>
+            <button type="button" class="assets-nav-item" disabled>图标</button>
+            <button type="button" class="assets-nav-item" disabled>图片</button>
+            <button type="button" class="assets-nav-item" disabled>字体</button>
+          </nav>
+          <div class="assets-panel-main">
+            <p class="assets-panel-placeholder">资源管理功能设计中，敬请期待。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h3 id="sidebar-title">My Diagrams</h3>
+        <button id="btn-new-diagram" type="button" class="icon-btn sidebar-new-btn" title="New diagram" aria-label="New diagram">+</button>
+      </div>
+      <ul id="diagram-list" class="diagram-list"></ul>
+    </aside>
   </div>
 
   <div id="name-dialog-backdrop" class="modal-backdrop" hidden>
@@ -157,6 +285,36 @@
         <button type="button" id="name-dialog-overwrite" class="name-dialog-btn name-dialog-overwrite" hidden>Overwrite</button>
         <button type="button" id="name-dialog-confirm" class="name-dialog-btn primary">Confirm</button>
       </div>
+    </div>
+  </div>
+
+  <div id="login-dialog-backdrop" class="modal-backdrop" hidden>
+    <div id="login-dialog" class="login-dialog popover" role="dialog" aria-labelledby="login-dialog-title" aria-modal="true">
+      <h2 id="login-dialog-title" class="login-dialog-title">登录</h2>
+      <p class="login-dialog-hint">登录后图表保存到你 GitHub 仓库的 Issue，odogram 不存储 diagram 内容。</p>
+
+      <div class="login-dialog-oauth" role="group" aria-label="OAuth 登录">
+        <button id="btn-login-github" type="button" class="login-dialog-oauth-btn login-dialog-oauth-btn--github">
+          <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Log in with GitHub
+        </button>
+        <button id="btn-login-gitlab" type="button" class="login-dialog-oauth-btn login-dialog-oauth-btn--gitlab"
+                data-auth-provider="gitlab" disabled title="即将推出" aria-disabled="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.955 13.587l-1.342-4.135-2.664-8.175a.955.955 0 0 0-.864-.564h-3.129a.955.955 0 0 0-.864.564L12 4.697 9.928 1.277A.955.955 0 0 0 9.064.564H5.935a.955.955 0 0 0-.864.564L2.407 1.277 1.065 5.412a1.912 1.912 0 0 0 .698 2.141l9.488 6.857-9.488 6.857a1.912 1.912 0 0 0-.698 2.141l1.342 4.135 2.664-8.175a.955.955 0 0 1 .864-.564h6.52a.955.955 0 0 1 .864.564l2.664 8.175 1.342-4.135a1.912 1.912 0 0 0-.698-2.141L14.312 14.41l9.488-6.857a1.912 1.912 0 0 0 .698-2.141"/></svg>
+          Log in with GitLab
+          <span class="login-dialog-oauth-badge">即将推出</span>
+        </button>
+      </div>
+
+      <button id="login-dialog-cancel" type="button" class="login-dialog-cancel">取消</button>
+    </div>
+  </div>
+
+  <div id="ai-dialog-backdrop" class="modal-backdrop" hidden>
+    <div id="ai-dialog" class="ai-dialog popover" role="dialog" aria-labelledby="ai-dialog-title" aria-modal="true">
+      <h2 id="ai-dialog-title" class="ai-dialog-title">AI 助手</h2>
+      <p class="ai-dialog-hint">功能设计中，敬请期待。</p>
+      <button id="ai-dialog-close" type="button" class="ai-dialog-close">关闭</button>
     </div>
   </div>
 

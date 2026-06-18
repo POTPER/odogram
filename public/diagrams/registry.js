@@ -1,5 +1,4 @@
 export const dom = {
-  shareUrlEl: document.getElementById('share-url'),
   diagramList: document.getElementById('diagram-list'),
   btnSave: document.getElementById('btn-save'),
   contextMenu: document.getElementById('diagram-context-menu'),
@@ -27,6 +26,7 @@ export const ui = {
   syncLayoutSelectFromCode: () => {},
   setQueryDiagram: () => {},
   updateSaveHelpContent: () => {},
+  updateToolbarDocInfo: () => {},
 };
 
 export const api = {};

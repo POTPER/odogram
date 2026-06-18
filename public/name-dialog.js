@@ -13,16 +13,25 @@ let nameDialogResolver = null;
 let nameDialogExcludeId = null;
 let nameDialogAllowOverwrite = true;
 
-function validateDiagramId(id) {
+export function validateDiagramId(id) {
   if (!ID_PATTERN.test(id)) {
     return ID_FORMAT_HINT;
   }
   return null;
 }
 
-function isDiagramIdTaken(id) {
-  if (nameDialogExcludeId && id === nameDialogExcludeId) return false;
+export function isDiagramIdTaken(id, excludeId = null) {
+  if (excludeId && id === excludeId) return false;
   return ctx.diagramIds.has(diagramKey(ctx.currentFolder, id));
+}
+
+function validateDiagramIdLocal(id) {
+  return validateDiagramId(id);
+}
+
+function isDiagramIdTakenLocal(id) {
+  if (nameDialogExcludeId && id === nameDialogExcludeId) return false;
+  return isDiagramIdTaken(id, nameDialogExcludeId);
 }
 
 function setNameDialogError(message) {
@@ -56,14 +65,14 @@ function onNameDialogKeydown(event) {
 
 function tryConfirmNameDialog({ overwrite = false } = {}) {
   const id = nameDialogInput.value.trim();
-  const formatError = validateDiagramId(id);
+  const formatError = validateDiagramIdLocal(id);
   if (formatError) {
     setNameDialogError(formatError);
     nameDialogOverwrite.hidden = true;
     return;
   }
 
-  if (isDiagramIdTaken(id) && !overwrite) {
+  if (isDiagramIdTakenLocal(id) && !overwrite) {
     if (nameDialogAllowOverwrite) {
       setNameDialogError(`"${id}" already exists. Choose another name or click Overwrite.`);
       nameDialogOverwrite.hidden = false;
@@ -74,7 +83,7 @@ function tryConfirmNameDialog({ overwrite = false } = {}) {
     return;
   }
 
-  closeNameDialog({ id, overwrite: overwrite || isDiagramIdTaken(id) });
+  closeNameDialog({ id, overwrite: overwrite || isDiagramIdTakenLocal(id) });
 }
 
 export async function refreshDiagramIds() {

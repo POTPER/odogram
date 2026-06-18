@@ -41,12 +41,12 @@ export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl
   ctx.lastShareUrl = shareUrl || buildShareUrl(ctx.currentFolder, ctx.currentId);
   ctx.lastGithubUrl = githubUrl
     || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
-  dom.shareUrlEl.textContent = ctx.lastShareUrl;
-  dom.shareUrlEl.title = ctx.lastShareUrl;
+  ctx.shareUI?.updateShareUI?.();
   if (!deferRender) {
     ui.scheduleRender();
   }
   ui.updateSaveHelpContent();
+  ui.updateToolbarDocInfo();
   updateListActiveState();
 }
 
@@ -147,11 +147,11 @@ export async function saveDiagramWithId(id, { quiet = false, folder, code } = {}
     ctx.lastShareUrl = data.shareUrl || '';
     ctx.lastGithubUrl = data.githubUrl
       || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
-    dom.shareUrlEl.textContent = ctx.lastShareUrl;
-    dom.shareUrlEl.title = ctx.lastShareUrl;
+    ctx.shareUI?.updateShareUI?.();
     syncBaseline(payloadCode);
     clearContentDirty();
     ui.updateSaveHelpContent();
+    ui.updateToolbarDocInfo();
 
     if (!quiet) endSync('save', targetFolder, targetId);
     if (quiet) {
@@ -197,7 +197,7 @@ export async function newDiagram() {
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   ui.setQueryDiagram(ctx.currentFolder, null);
-  dom.shareUrlEl.textContent = '';
+  ctx.shareUI?.updateShareUI?.();
 
   setSuppressAutoSave(true);
   clearContentDirty();
@@ -238,9 +238,9 @@ function commitRenameLocally(oldId, newId, folder = '', { shareUrl, githubUrl, n
     ctx.lastShareUrl = shareUrl || buildShareUrl(folder, newId);
     ctx.lastGithubUrl = githubUrl
       || getGitHubFileUrl(ctx.user.username, newId, folder, ctx.currentNumber);
-    dom.shareUrlEl.textContent = ctx.lastShareUrl;
-    dom.shareUrlEl.title = ctx.lastShareUrl;
+    ctx.shareUI?.updateShareUI?.();
     ui.updateSaveHelpContent();
+    ui.updateToolbarDocInfo();
   }
 }
 
@@ -309,8 +309,7 @@ export async function moveDiagram(id, fromFolder = '', toFolder = '') {
       ctx.lastShareUrl = data.shareUrl || buildShareUrl(ctx.currentFolder, ctx.currentId);
       ctx.lastGithubUrl = data.githubUrl
         || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
-      dom.shareUrlEl.textContent = ctx.lastShareUrl;
-      dom.shareUrlEl.title = ctx.lastShareUrl;
+      ctx.shareUI?.updateShareUI?.();
       ui.updateSaveHelpContent();
     }
 

@@ -1,3 +1,5 @@
+import { injectLayoutIcons, updateTriggerLayoutIcon } from './icons/layout-icons.js';
+
 const SPLIT_KEY = 'odogram-split';
 const SIDEBAR_KEY = 'odogram-sidebar-open';
 const MODE_KEY = 'odogram-workbench-mode';
@@ -16,9 +18,8 @@ function normalizeMode(mode) {
   return VALID_MODES.includes(mode) ? mode : 'edit';
 }
 
-export function initLayoutUI() {
+export function initLayoutUI({ closeOtherPopovers } = {}) {
   const resizer = document.getElementById('pane-resizer');
-  const sidebarToggle = document.getElementById('btn-sidebar-toggle');
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
   const tabSource = document.getElementById('tab-source');
@@ -26,10 +27,11 @@ export function initLayoutUI() {
   const diagramList = document.getElementById('diagram-list');
   const workbench = document.querySelector('.workbench');
   const root = document.documentElement;
+  const btnViewLayout = document.getElementById('btn-view-layout');
+  const viewLayoutPopover = document.getElementById('view-layout-popover');
   const modeButtons = document.querySelectorAll('[data-workbench-mode]');
   const focusExpandBtn = document.getElementById('btn-focus-expand');
   const expandSourceBtn = document.getElementById('btn-expand-source');
-  const btnSaveFocus = document.getElementById('btn-save-focus');
   const sourceHeaderLabel = document.getElementById('source-header-label');
 
   const savedSplit = localStorage.getItem(SPLIT_KEY);
@@ -38,13 +40,14 @@ export function initLayoutUI() {
   }
 
   let currentMode = normalizeMode(localStorage.getItem(MODE_KEY) || 'edit');
+  let viewLayoutOpen = false;
 
   function isMobile() {
     return MOBILE_MQ.matches;
   }
 
   function getCurrentSplit() {
-    return Number(getComputedStyle(root).getPropertyValue('--split')) || 50;
+    return Number(getComputedStyle(root).getPropertyValue('--split')) || 38;
   }
 
   function applyModeClasses(mode) {
@@ -67,11 +70,11 @@ export function initLayoutUI() {
     if (expandSourceBtn) {
       expandSourceBtn.hidden = !desktop || currentMode !== 'result';
     }
-    if (btnSaveFocus) {
-      btnSaveFocus.hidden = !desktop || currentMode !== 'focus';
-    }
     if (sourceHeaderLabel) {
       sourceHeaderLabel.textContent = desktop && currentMode === 'result' ? 'Source (compact)' : 'Source';
+    }
+    if (desktop) {
+      updateTriggerLayoutIcon(currentMode);
     }
   }
 
@@ -115,9 +118,24 @@ export function initLayoutUI() {
     dispatchPreviewResize();
   }
 
+  function setViewLayoutOpen(open) {
+    viewLayoutOpen = open;
+    if (viewLayoutPopover) viewLayoutPopover.hidden = !open;
+    if (btnViewLayout) {
+      btnViewLayout.classList.toggle('active', open);
+      btnViewLayout.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    if (open) closeOtherPopovers?.();
+  }
+
+  function toggleViewLayout(event) {
+    event?.stopPropagation();
+    setViewLayoutOpen(!viewLayoutOpen);
+  }
+
   function updateBackdrop() {
     if (!backdrop) return;
-    backdrop.hidden = !document.body.classList.contains('sidebar-open') || !isMobile();
+    backdrop.hidden = !document.body.classList.contains('sidebar-open');
   }
 
   function setSidebarOpen(open) {
@@ -129,8 +147,7 @@ export function initLayoutUI() {
   }
 
   function syncSidebarToggle() {
-    sidebarToggle.hidden = !sidebar.classList.contains('visible');
-    if (!sidebar.classList.contains('visible')) {
+    if (!sidebar?.classList.contains('drawer-ready')) {
       document.body.classList.remove('sidebar-open');
       updateBackdrop();
       return;
@@ -138,16 +155,12 @@ export function initLayoutUI() {
 
     if (!document.body.dataset.sidebarInitialized) {
       const saved = localStorage.getItem(SIDEBAR_KEY);
-      const defaultOpen = saved === null ? true : saved !== '0';
+      const defaultOpen = saved === null ? false : saved !== '0';
       setSidebarOpen(defaultOpen);
       document.body.dataset.sidebarInitialized = '1';
     }
     updateBackdrop();
   }
-
-  sidebarToggle.addEventListener('click', () => {
-    setSidebarOpen(!document.body.classList.contains('sidebar-open'));
-  });
 
   backdrop?.addEventListener('click', () => setSidebarOpen(false));
 
@@ -234,9 +247,17 @@ export function initLayoutUI() {
   tabPreview?.addEventListener('click', () => activateTab('preview'));
 
   modeButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
       setWorkbenchMode(btn.dataset.workbenchMode);
+      setViewLayoutOpen(false);
     });
+  });
+
+  btnViewLayout?.addEventListener('click', toggleViewLayout);
+  viewLayoutPopover?.addEventListener('click', (event) => event.stopPropagation());
+  document.addEventListener('click', () => {
+    if (viewLayoutOpen) setViewLayoutOpen(false);
   });
 
   focusExpandBtn?.addEventListener('click', () => {
@@ -258,12 +279,15 @@ export function initLayoutUI() {
   });
 
   syncSidebarToggle();
+  injectLayoutIcons();
   syncWorkbenchMode();
 
   return {
     syncSidebarToggle,
     openSidebar: () => setSidebarOpen(true),
+    setSidebarOpen,
     setWorkbenchMode,
     getWorkbenchMode: () => currentMode,
+    setViewLayoutOpen,
   };
 }

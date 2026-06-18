@@ -1,14 +1,13 @@
 import { ctx } from './app-context.js';
+import { updateToolbarDocInfo } from './toolbar-doc.js';
+import { updateToolbarDocRenameVisibility } from './toolbar-doc-edit.js';
 
-const shareUrlEl = document.getElementById('share-url');
 const sidebar = document.getElementById('sidebar');
 const sidebarTitle = document.getElementById('sidebar-title');
+const btnDiagramsLabel = document.getElementById('btn-diagrams-label');
 const btnNewDiagram = document.getElementById('btn-new-diagram');
 const btnSave = document.getElementById('btn-save');
-const btnSaveFocus = document.getElementById('btn-save-focus');
-const btnSaveHelp = document.getElementById('btn-save-help');
-const saveHelpPopover = document.getElementById('save-help-popover');
-const saveHelpContent = document.getElementById('save-help-content');
+const saveHelpContent = document.getElementById('settings-save-info');
 const btnLogin = document.getElementById('btn-login');
 const userMenu = document.getElementById('user-menu');
 const btnUserToggle = document.getElementById('btn-user-toggle');
@@ -16,7 +15,6 @@ const userMenuPopover = document.getElementById('user-menu-popover');
 const userAvatar = document.getElementById('user-avatar');
 const userName = document.getElementById('user-name');
 
-let saveHelpOpen = false;
 let userMenuOpen = false;
 let showStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
@@ -41,6 +39,8 @@ export async function fetchMe() {
 }
 
 export function updateSaveHelpContent() {
+  if (!saveHelpContent) return;
+
   let html = '';
 
   if (!ctx.user?.login) {
@@ -107,22 +107,10 @@ function setUserMenuOpen(open) {
 export function toggleUserMenu(event) {
   event.stopPropagation();
   setUserMenuOpen(!userMenuOpen);
-  if (userMenuOpen) setSaveHelpOpen(false);
-}
-
-export function setSaveHelpOpen(open) {
-  saveHelpOpen = open;
-  saveHelpPopover.hidden = !open;
-  btnSaveHelp.classList.toggle('active', open);
-  if (open) {
-    updateSaveHelpContent();
-    setUserMenuOpen(false);
+  if (userMenuOpen) {
+    ctx.settingsUI?.setSettingsOpen?.(false);
+    ctx.layoutUI?.setViewLayoutOpen?.(false);
   }
-}
-
-export function toggleSaveHelp(event) {
-  event.stopPropagation();
-  setSaveHelpOpen(!saveHelpOpen);
 }
 
 export function updateAuthUI() {
@@ -133,10 +121,11 @@ export function updateAuthUI() {
     btnLogin.hidden = true;
     userMenu.hidden = false;
     btnSave.disabled = false;
-    if (btnSaveFocus) btnSaveFocus.disabled = false;
-    sidebar.classList.add('visible');
+    sidebar.classList.add('drawer-ready');
+    sidebar.classList.remove('visible');
     document.body.classList.remove('is-guest-examples');
     if (sidebarTitle) sidebarTitle.textContent = 'My Diagrams';
+    if (btnDiagramsLabel) btnDiagramsLabel.textContent = 'Diagrams';
     if (btnNewDiagram) btnNewDiagram.hidden = false;
     userAvatar.src = ctx.user.avatar;
     userAvatar.alt = ctx.user.username;
@@ -145,27 +134,29 @@ export function updateAuthUI() {
     btnLogin.hidden = false;
     userMenu.hidden = true;
     btnSave.disabled = true;
-    if (btnSaveFocus) btnSaveFocus.disabled = true;
-    sidebar.classList.add('visible');
+    sidebar.classList.add('drawer-ready');
+    sidebar.classList.remove('visible');
     document.body.classList.add('is-guest-examples');
     if (sidebarTitle) sidebarTitle.textContent = '示例';
+    if (btnDiagramsLabel) btnDiagramsLabel.textContent = '示例';
     if (btnNewDiagram) btnNewDiagram.hidden = true;
-    setSaveHelpOpen(false);
     setUserMenuOpen(false);
+    ctx.settingsUI?.setSettingsOpen?.(false);
   }
   ctx.layoutUI?.syncSidebarToggle();
   updateSaveHelpContent();
+  ctx.settingsUI?.updateSettingsAccount?.();
+  ctx.shareUI?.updateShareUI?.();
+  updateToolbarDocInfo();
+  updateToolbarDocRenameVisibility();
 }
 
 export function initAuthUI({ showStatus, escapeHtml }) {
   showStatusFn = showStatus;
   escapeHtmlFn = escapeHtml;
 
-  btnSaveHelp.addEventListener('click', toggleSaveHelp);
-  saveHelpPopover.addEventListener('click', (event) => event.stopPropagation());
   userMenuPopover.addEventListener('click', (event) => event.stopPropagation());
   document.addEventListener('click', () => {
-    if (saveHelpOpen) setSaveHelpOpen(false);
     if (userMenuOpen) setUserMenuOpen(false);
   });
 

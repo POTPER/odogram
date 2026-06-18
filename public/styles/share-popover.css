@@ -1,0 +1,120 @@
+body.is-logged-out .share-menu {
+  display: none !important;
+}
+
+.share-menu {
+  position: relative;
+}
+
+.share-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.share-trigger:hover:not(:disabled),
+.share-trigger.active {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+.share-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.share-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 220;
+  width: min(400px, calc(100vw - 24px));
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.share-heading {
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.share-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.share-url-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share-action-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.share-action-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+.share-action-btn.primary {
+  background: var(--primary);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.share-action-btn.primary:hover {
+  background: var(--primary-hover);
+}
+
+.share-action-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}

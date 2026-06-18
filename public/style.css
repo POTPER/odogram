@@ -1,4 +1,11 @@
 @import url('./styles/base.css');
 @import url('./styles/sidebar.css');
 @import url('./styles/workbench.css');
+@import url('./styles/status-bar.css');
+@import url('./styles/view-layout.css');
+@import url('./styles/login-dialog.css');
+@import url('./styles/settings-popover.css');
+@import url('./styles/share-popover.css');
+@import url('./styles/ai-dialog.css');
+@import url('./styles/assets-panel.css');
 @import url('./styles/oproduct.css');

@@ -7,7 +7,14 @@ import { initLayoutUI } from './layout-ui.js';
 import { ctx } from './app-context.js';
 import { initPreview } from './preview.js';
 import { initNameDialog } from './name-dialog.js';
+import { initLoginDialog, closeLoginDialog } from './login-dialog.js';
+import { initAiDialog, closeAiDialog } from './ai-dialog.js';
+import { initAssetsPanel, closeAssetsPanel } from './assets-panel.js';
+import { initToolbarDocEdit } from './toolbar-doc-edit.js';
 import { initAuthUI } from './auth-ui.js';
+import { initSettingsUI } from './settings-ui.js';
+import { initShareUI } from './share-ui.js';
+import { updateToolbarDocInfo } from './toolbar-doc.js';
 import { initDiagrams } from './diagrams/index.js';
 
 mermaid.registerLayoutLoaders(elkLayouts);
@@ -17,19 +24,17 @@ mermaid.initialize({
 });
 
 const editorRoot = document.getElementById('editor-root');
-const statusEl = document.getElementById('status');
+const statusEl = document.getElementById('status-message');
 const layoutSelect = document.getElementById('layout-select');
 const btnSave = document.getElementById('btn-save');
-const btnSaveFocus = document.getElementById('btn-save-focus');
 const btnCopy = document.getElementById('btn-copy');
 const btnDownload = document.getElementById('btn-download');
 const btnExample = document.getElementById('btn-example');
 const btnProduct = document.getElementById('btn-product');
 const layoutSelectWrap = document.querySelector('.layout-select-wrap');
-const btnLogin = document.getElementById('btn-login');
 const btnLogout = document.getElementById('btn-logout');
 const btnUserToggle = document.getElementById('btn-user-toggle');
-const btnMenuDiagrams = document.getElementById('btn-menu-diagrams');
+const btnDiagrams = document.getElementById('btn-diagrams');
 const btnNewDiagram = document.getElementById('btn-new-diagram');
 
 let layoutSyncing = false;
@@ -38,6 +43,8 @@ let scheduleAutoSave = () => {};
 let markContentDirty = () => {};
 let previewApi;
 let authApi;
+let settingsApi;
+let shareApi;
 let diagramApi;
 
 function showStatus(message, options = false) {
@@ -45,21 +52,22 @@ function showStatus(message, options = false) {
   const { isError = false, persistent = false } = opts;
 
   statusEl.textContent = message;
-  statusEl.classList.add('visible');
   statusEl.classList.toggle('error', isError);
   statusEl.classList.toggle('syncing', persistent);
 
   clearTimeout(showStatus._timer);
   if (!persistent) {
     showStatus._timer = setTimeout(() => {
-      statusEl.classList.remove('visible', 'error', 'syncing');
+      statusEl.textContent = '';
+      statusEl.classList.remove('error', 'syncing');
     }, 4000);
   }
 }
 
 function clearPersistentStatus() {
   clearTimeout(showStatus._timer);
-  statusEl.classList.remove('visible', 'error', 'syncing');
+  statusEl.textContent = '';
+  statusEl.classList.remove('error', 'syncing');
 }
 
 function escapeHtml(str) {
@@ -122,13 +130,9 @@ function syncDownloadButton(isOproduct) {
 
 function bindToolbar() {
   btnSave.addEventListener('click', () => diagramApi.saveDiagram());
-  if (btnSaveFocus) {
-    btnSaveFocus.addEventListener('click', () => diagramApi.saveDiagram());
-  }
   btnUserToggle.addEventListener('click', authApi.toggleUserMenu);
-  btnMenuDiagrams.addEventListener('click', () => {
-    authApi.setUserMenuOpen(false);
-    ctx.layoutUI?.openSidebar();
+  btnDiagrams.addEventListener('click', () => {
+    ctx.layoutUI?.setSidebarOpen?.(!document.body.classList.contains('sidebar-open'));
   });
   btnNewDiagram.addEventListener('click', () => diagramApi.newDiagram());
   btnCopy.addEventListener('click', () => diagramApi.copySource());
@@ -143,9 +147,6 @@ function bindToolbar() {
       layoutSelectWrap.hidden = isOproduct;
     }
     syncDownloadButton(isOproduct);
-  });
-  btnLogin.addEventListener('click', () => {
-    window.location.href = '/auth/login';
   });
   btnLogout.addEventListener('click', () => {
     window.location.href = '/auth/logout';
@@ -184,7 +185,22 @@ async function init() {
   });
   scheduleRender = previewApi.scheduleRender;
   initNameDialog();
+  initLoginDialog();
+  initAiDialog();
+  initAssetsPanel();
+  initToolbarDocEdit({ showStatus });
+  ctx.closeLoginDialog = closeLoginDialog;
+  ctx.closeAiDialog = closeAiDialog;
+  ctx.closeAssetsPanel = closeAssetsPanel;
   authApi = initAuthUI({ showStatus, escapeHtml });
+  ctx.authUI = authApi;
+  settingsApi = initSettingsUI({
+    updateSaveHelpContent: authApi.updateSaveHelpContent,
+    escapeHtml,
+  });
+  ctx.settingsUI = settingsApi;
+  shareApi = initShareUI({ showStatus });
+  ctx.shareUI = shareApi;
   diagramApi = initDiagrams({
     showStatus,
     clearPersistentStatus,
@@ -196,6 +212,7 @@ async function init() {
     syncLayoutSelectFromCode,
     setQueryDiagram,
     updateSaveHelpContent: authApi.updateSaveHelpContent,
+    updateToolbarDocInfo,
   });
   scheduleAutoSave = diagramApi.scheduleAutoSave;
   markContentDirty = diagramApi.markContentDirty;
@@ -204,7 +221,16 @@ async function init() {
     if (previewApi.getPreviewSvg()) previewApi.fitPreview();
   });
 
-  ctx.layoutUI = initLayoutUI();
+  ctx.layoutUI = initLayoutUI({
+    closeOtherPopovers: () => {
+      authApi.setUserMenuOpen(false);
+      settingsApi.setSettingsOpen(false);
+      shareApi.setShareOpen(false);
+      closeLoginDialog();
+      closeAiDialog();
+      closeAssetsPanel();
+    },
+  });
   bindToolbar();
 
   const params = new URLSearchParams(window.location.search);

@@ -1,0 +1,84 @@
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  min-height: var(--status-bar-height);
+  padding: 0 10px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.status-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-bar-left {
+  justify-content: flex-start;
+}
+
+.status-bar-right {
+  justify-content: flex-end;
+}
+
+.status-bar-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.status-bar-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.status-bar-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.status-bar-message {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-bar-message:not(:empty) {
+  color: var(--text);
+}
+
+.status-bar-message.error {
+  color: var(--error-text);
+}
+
+.status-bar-message.syncing::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: status-spin 0.7s linear infinite;
+}

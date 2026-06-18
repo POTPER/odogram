@@ -5,9 +5,10 @@
 }
 
 :root {
-  --split: 50;
+  --split: 38;
   --sidebar-width: 240px;
   --toolbar-height: 48px;
+  --status-bar-height: 32px;
 
   --brand: #007acc;
   --accent: #007acc;
@@ -43,7 +44,7 @@
   display: none !important;
 }
 
-body.is-logged-in .btn-login {
+body.is-logged-in #btn-login {
   display: none !important;
 }
 
@@ -100,22 +101,138 @@ a:focus-visible,
 .toolbar-brand {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.toolbar-doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.toolbar-doc-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: min(320px, 40vw);
+}
+
+.toolbar-doc-title-row:hover .toolbar-doc-rename-btn:not([hidden]) {
+  opacity: 1;
+}
+
+.toolbar-doc-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.toolbar-doc-title.is-editable {
+  cursor: pointer;
+}
+
+.toolbar-doc-title.is-editable:hover {
+  color: var(--accent);
+}
+
+.toolbar-doc-title-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: min(280px, 36vw);
+  padding: 1px 6px;
+  margin: 0;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  outline: none;
+}
+
+.toolbar-doc-rename-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.toolbar-doc-title-row.is-editing .toolbar-doc-rename-btn,
+.toolbar-doc-title-row:hover .toolbar-doc-rename-btn {
+  opacity: 1;
+}
+
+.toolbar-doc-rename-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.toolbar-doc-author {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(320px, 40vw);
+}
+
+.toolbar-diagrams-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.toolbar-diagrams-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--accent);
 }
 
 .brand-link {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  flex-shrink: 0;
   color: var(--text);
   text-decoration: none;
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.01em;
   border-radius: var(--radius-sm);
-  padding: 4px 6px;
-  margin: -4px -6px;
+  padding: 4px;
+  margin: -4px;
   transition: color 0.15s;
 }
 
@@ -229,27 +346,6 @@ a:focus-visible,
 
 .btn-icon-text span {
   font-size: 13px;
-}
-
-.btn-login {
-  appearance: none;
-  border: 1px solid transparent;
-  background: var(--success);
-  color: #fff;
-  padding: 8px 14px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.15s;
-}
-
-.btn-login:hover {
-  background: var(--success-hover);
 }
 
 .layout-select-wrap {
@@ -564,15 +660,6 @@ a:focus-visible,
 .menu-item svg {
   color: var(--text-muted);
   flex-shrink: 0;
-}
-
-.share-url {
-  font-size: 12px;
-  color: var(--text-muted);
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 @keyframes status-spin {

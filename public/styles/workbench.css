@@ -217,10 +217,6 @@ body.is-resizing * {
   font-size: 11px;
 }
 
-.source-actions .share-url {
-  max-width: 160px;
-}
-
 .source-actions #btn-save-help {
   min-width: 24px;
   padding: 4px 7px;
@@ -253,16 +249,6 @@ body.is-resizing * {
   color: var(--text);
   border-color: var(--accent);
   background: var(--surface-hover);
-}
-
-.workbench-mode-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  margin-right: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
 }
 
 .mode-btn {
@@ -541,49 +527,15 @@ body.mode-result .pane-resizer {
   100% { transform: translateX(320%); }
 }
 
-.status {
-  flex-shrink: 0;
-  padding: 4px 14px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: 12px;
-  border-top: 1px solid var(--border);
-  min-height: 22px;
-  display: none;
-}
-
-.status.visible {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--accent);
-  color: #fff;
-}
-
-.status.syncing::before {
-  content: '';
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: status-spin 0.7s linear infinite;
-}
-
-.status.error {
-  background: var(--error-bg);
-  color: var(--error-text);
-}
-
 @media (max-width: 768px) {
   .toolbar {
     padding: 0 10px;
     gap: 8px;
   }
 
-  .brand-name {
-    display: none;
+  .toolbar-doc-title,
+  .toolbar-doc-author {
+    max-width: min(180px, 32vw);
   }
 
   .user-menu-name {
@@ -592,10 +544,6 @@ body.mode-result .pane-resizer {
 
   .user-menu-trigger {
     padding: 4px;
-  }
-
-  .source-actions .share-url {
-    display: none;
   }
 
   .source-actions .layout-select-wrap {
@@ -620,7 +568,6 @@ body.mode-result .pane-resizer {
     display: flex;
   }
 
-  .workbench-mode-switch,
   .focus-expand-strip,
   .source-expand-btn {
     display: none !important;
@@ -667,38 +614,4 @@ body.mode-result .pane-resizer {
   body.tab-preview .pane-source {
     display: none;
   }
-
-  .sidebar.visible {
-    position: fixed;
-    top: var(--toolbar-height);
-    left: 0;
-    bottom: 22px;
-    z-index: 200;
-    width: var(--sidebar-width);
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    border-right: 1px solid var(--border);
-    box-shadow: var(--shadow-popover);
-  }
-
-  body.sidebar-open .sidebar.visible {
-    transform: translateX(0);
-  }
-
 }
-
-@media (max-width: 480px) {
-  .btn-login span {
-    display: none;
-  }
-
-  .btn-login {
-    padding: 8px 10px;
-  }
-
-  .btn-login svg {
-    width: 18px;
-    height: 18px;
-  }
-}
-

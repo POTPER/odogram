@@ -7,7 +7,7 @@ import {
   syncBaseline,
 } from './autosave.js';
 import { openDiagramInEditor, saveDiagramWithId } from './crud.js';
-import { dom, ui } from './registry.js';
+import { ui } from './registry.js';
 import { loadUrl } from './utils.js';
 import { findGuestExample } from './guest-catalog.js';
 import { updateListActiveState } from './sidebar.js';
@@ -32,8 +32,9 @@ async function applyStaticSource(text, { guestExampleId = null } = {}) {
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   ui.setQueryDiagram('', null);
-  dom.shareUrlEl.textContent = '';
+  ctx.shareUI?.updateShareUI?.();
   ui.updateSaveHelpContent();
+  ui.updateToolbarDocInfo();
   updateListActiveState();
 }
 

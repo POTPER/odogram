@@ -7,7 +7,7 @@
 
 .sidebar-backdrop {
   position: fixed;
-  inset: var(--toolbar-height) 0 22px 0;
+  inset: var(--toolbar-height) 0 var(--status-bar-height) 0;
   z-index: 150;
   background: rgba(0, 0, 0, 0.45);
 }
@@ -17,23 +17,28 @@
 }
 
 .sidebar {
-  width: 0;
-  overflow: hidden;
-  background: var(--surface);
-  border-right: none;
   display: none;
   flex-direction: column;
-  flex-shrink: 0;
-  transition: width 0.2s ease;
+  position: fixed;
+  top: var(--toolbar-height);
+  left: 0;
+  bottom: var(--status-bar-height);
+  z-index: 200;
+  width: var(--sidebar-width);
+  overflow: hidden;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow-popover);
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
 }
 
-.sidebar.visible {
+.sidebar.drawer-ready {
   display: flex;
 }
 
-body.sidebar-open .sidebar.visible {
-  width: var(--sidebar-width);
-  border-right: 1px solid var(--border);
+body.sidebar-open .sidebar.drawer-ready {
+  transform: translateX(0);
 }
 
 body.is-guest-examples .sidebar-new-btn {
@@ -253,4 +258,3 @@ body.is-guest-examples .sidebar-new-btn {
 .diagram-list-item .diagram-item-btn.active .diagram-item-icon {
   color: var(--accent);
 }
-

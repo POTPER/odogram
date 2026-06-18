@@ -35,6 +35,7 @@ export function initDiagrams({
   syncLayoutSelectFromCode,
   setQueryDiagram,
   updateSaveHelpContent,
+  updateToolbarDocInfo,
 }) {
   ui.showStatus = showStatus;
   ui.clearPersistentStatus = clearPersistentStatus;
@@ -46,6 +47,7 @@ export function initDiagrams({
   ui.syncLayoutSelectFromCode = syncLayoutSelectFromCode;
   ui.setQueryDiagram = setQueryDiagram;
   ui.updateSaveHelpContent = updateSaveHelpContent;
+  ui.updateToolbarDocInfo = updateToolbarDocInfo;
 
   initContextMenu();
 
