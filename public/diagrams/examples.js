@@ -9,19 +9,19 @@ import {
 import { openDiagramInEditor, saveDiagramWithId } from './crud.js';
 import { dom, ui } from './registry.js';
 import { loadUrl } from './utils.js';
+import {
+  beginPreviewLoading,
+  endPreviewLoading,
+  setPreviewLoadingPhase,
+} from '../preview-loading.js';
 
-export async function loadStaticExample() {
-  const res = await fetch('/diagrams/example.mmd');
-  if (!res.ok) throw new Error('Failed to load example');
-
+async function applyStaticSource(text) {
   setSuppressAutoSave(true);
   clearAutoSaveTimer();
   clearContentDirty();
-  const text = await res.text();
   ctx.editor.setValue(text);
   syncBaseline(text);
   setSuppressAutoSave(false);
-  ui.syncLayoutSelectFromCode();
   ctx.currentId = null;
   ctx.currentFolder = '';
   ctx.currentNumber = null;
@@ -30,35 +30,50 @@ export async function loadStaticExample() {
   ctx.lastGithubUrl = '';
   ui.setQueryDiagram('', null);
   dom.shareUrlEl.textContent = '';
-  ui.scheduleRender();
   dom.diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
   ui.updateSaveHelpContent();
 }
 
+async function renderLoadedSource() {
+  setPreviewLoadingPhase('render');
+  await ui.renderPreviewNow();
+  await ui.waitForPreviewSettled();
+}
+
+export async function loadStaticExample() {
+  ui.clearPreviewCanvas();
+  beginPreviewLoading('Loading diagram…');
+  try {
+    setPreviewLoadingPhase('fetch');
+    const res = await fetch('/diagrams/example.mmd');
+    if (!res.ok) throw new Error('Failed to load example');
+
+    const text = await res.text();
+    await applyStaticSource(text);
+    ui.syncLayoutSelectFromCode();
+    await renderLoadedSource();
+  } finally {
+    endPreviewLoading();
+  }
+}
+
 export async function loadWelcome() {
-  await flushAutoSave();
+  ui.clearPreviewCanvas();
+  beginPreviewLoading('Loading diagram…');
+  try {
+    await flushAutoSave();
+    setPreviewLoadingPhase('fetch');
 
-  const res = await fetch('/diagrams/oproduct-欢迎.oprd');
-  if (!res.ok) throw new Error('Failed to load product map');
+    const res = await fetch('/diagrams/oproduct-欢迎.oprd');
+    if (!res.ok) throw new Error('Failed to load product map');
 
-  setSuppressAutoSave(true);
-  clearAutoSaveTimer();
-  clearContentDirty();
-  const text = await res.text();
-  ctx.editor.setValue(text);
-  syncBaseline(text);
-  setSuppressAutoSave(false);
-  ctx.currentId = null;
-  ctx.currentFolder = '';
-  ctx.currentNumber = null;
-  ctx.currentUpdatedAt = null;
-  ctx.lastShareUrl = '';
-  ctx.lastGithubUrl = '';
-  ui.setQueryDiagram('', null);
-  dom.shareUrlEl.textContent = '';
-  ui.scheduleRender();
-  dom.diagramList.querySelectorAll('.diagram-item-btn').forEach((btn) => btn.classList.remove('active'));
-  ui.updateSaveHelpContent();
+    const text = await res.text();
+    await applyStaticSource(text);
+    ui.syncLayoutSelectFromCode();
+    await renderLoadedSource();
+  } finally {
+    endPreviewLoading();
+  }
 }
 
 export async function loadProductExample() {
@@ -71,21 +86,31 @@ export async function loadProductExample() {
 }
 
 export async function loadExample() {
+  ui.clearPreviewCanvas();
+  beginPreviewLoading('Loading diagram…');
   try {
     await flushAutoSave();
 
     if (!ctx.user?.login) {
-      await loadStaticExample();
+      setPreviewLoadingPhase('fetch');
+      const res = await fetch('/diagrams/example.mmd');
+      if (!res.ok) throw new Error('Failed to load example');
+      const text = await res.text();
+      await applyStaticSource(text);
+      ui.syncLayoutSelectFromCode();
+      await renderLoadedSource();
       ui.showStatus('Example loaded');
       return;
     }
 
     const folder = EXAMPLE_FOLDER;
     const id = EXAMPLE_ID;
+    setPreviewLoadingPhase('fetch');
     const res = await fetch(loadUrl(folder, id));
 
     if (res.ok) {
-      openDiagramInEditor(await res.json());
+      openDiagramInEditor(await res.json(), { deferRender: true });
+      await renderLoadedSource();
       ui.showStatus('已打开示例');
       return;
     }
@@ -103,7 +128,8 @@ export async function loadExample() {
         githubUrl: ctx.lastGithubUrl,
         number: ctx.currentNumber,
         updatedAt: ctx.currentUpdatedAt,
-      });
+      }, { deferRender: true });
+      await renderLoadedSource();
       ui.showStatus('已打开示例');
       return;
     }
@@ -112,6 +138,8 @@ export async function loadExample() {
     throw new Error(data.error || 'Failed to load example');
   } catch (err) {
     ui.showStatus(err.message || 'Failed to load example', true);
+  } finally {
+    endPreviewLoading();
   }
 }
 

@@ -1,4 +1,4 @@
-﻿.main {
+.main {
   display: flex;
   flex: 1;
   min-height: 0;
@@ -135,7 +135,8 @@ body.sidebar-open .sidebar.visible {
   gap: 2px;
 }
 
-.diagram-list-item--syncing .diagram-item-label {
+.diagram-list-item--syncing .diagram-item-label,
+.diagram-list-item--loading .diagram-item-label {
   opacity: 0.75;
 }
 

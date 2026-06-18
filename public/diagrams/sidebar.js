@@ -21,6 +21,12 @@ function setListSyncBadge(folder, id, visible) {
   }
 }
 
+export function setListItemLoading(folder, id, visible) {
+  const li = findListItemByKey(dom.diagramList, folder, id);
+  if (!li) return;
+  li.classList.toggle('diagram-list-item--loading', visible);
+}
+
 function getSyncTotals() {
   let save = 0;
   let rename = 0;

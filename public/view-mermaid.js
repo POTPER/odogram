@@ -1,6 +1,12 @@
 import mermaid from 'mermaid';
 import elkLayouts from 'elk-layouts';
 import { disableContextMenu } from './view-shared.js';
+import {
+  endPreviewLoading,
+  initPreviewLoadingFromDom,
+  setPreviewLoadingPhase,
+} from './preview-loading.js';
+
 mermaid.registerLayoutLoaders(elkLayouts);
 mermaid.initialize({
   securityLevel: 'strict',
@@ -20,15 +26,21 @@ mermaid.initialize({
   },
 });
 
-const preview = document.getElementById('preview');
+const previewHost = document.getElementById('preview');
+const previewCanvas = document.getElementById('preview-canvas');
 const code = JSON.parse(document.getElementById('diagram-data').textContent);
 const renderId = 'view-diagram-' + Date.now();
 
+initPreviewLoadingFromDom(previewHost);
+setPreviewLoadingPhase('render');
+
 try {
   const { svg } = await mermaid.render(renderId, code);
-  preview.innerHTML = svg;
+  previewCanvas.innerHTML = svg;
 } catch (err) {
-  preview.innerHTML = '<div class="error">Failed to render diagram</div>';
+  previewCanvas.innerHTML = '<div class="error">Failed to render diagram</div>';
+} finally {
+  endPreviewLoading();
 }
 
 disableContextMenu();

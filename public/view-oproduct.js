@@ -5,13 +5,24 @@ import { renderJourneyView } from './oproduct/render-journey.js';
 import { VIEWS } from './oproduct/model.js';
 import { escapeHtml } from './escape-html.js';
 import { disableContextMenu } from './view-shared.js';
+import {
+  endPreviewLoading,
+  initPreviewLoadingFromDom,
+  setPreviewLoadingPhase,
+} from './preview-loading.js';
 
+const previewHost = document.getElementById('preview');
 const container = document.getElementById('preview-canvas');
 const code = JSON.parse(document.getElementById('diagram-data').textContent);
+
+initPreviewLoadingFromDom(previewHost);
+setPreviewLoadingPhase('render');
+
 const parsed = parseOproductDocument(code);
 
 if (!parsed.ok) {
   container.innerHTML = `<div class="preview-error">${escapeHtml(parsed.error)}</div>`;
+  endPreviewLoading();
 } else {
   let activeView = VIEWS.includes(parsed.doc.defaultView)
     ? parsed.doc.defaultView
@@ -41,6 +52,7 @@ if (!parsed.ok) {
   });
 
   renderView(activeView);
+  endPreviewLoading();
 }
 
 disableContextMenu();

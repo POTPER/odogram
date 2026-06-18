@@ -37,6 +37,49 @@ export function buildViewCsp(nonce, format) {
   ].join('; ');
 }
 
+const VIEW_LOADING_HTML = `<div class="preview-loading" role="status" aria-live="polite">
+  <div class="preview-loading-panel">
+    <div class="preview-loading-bar"><div class="preview-loading-fill" style="width:15%"></div></div>
+    <span class="preview-loading-label">Loading diagram…</span>
+  </div>
+</div>`;
+
+const VIEW_LOADING_CSS = `
+    .preview-loading {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #1e1e1e;
+    }
+    .preview-loading--visible { display: flex; }
+    .preview-loading--hiding { opacity: 0; transition: opacity 0.2s ease; }
+    .preview-loading-panel {
+      width: min(280px, calc(100% - 48px));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .preview-loading-bar {
+      height: 4px;
+      border-radius: 999px;
+      background: #3c3c3c;
+      overflow: hidden;
+    }
+    .preview-loading-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: #007acc;
+    }
+    .preview-loading-label {
+      font-size: 12px;
+      color: #858585;
+      text-align: center;
+    }`;
+
 export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
   const safeUser = escapeHtml(username);
   const safeId = escapeHtml(id);
@@ -86,13 +129,18 @@ export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
     header a:hover { text-decoration: underline; }
     .meta { color: #858585; font-size: 13px; }
     #preview {
+      position: relative;
+      flex: 1;
       padding: 32px;
       display: flex;
       justify-content: center;
       overflow: auto;
+      min-height: calc(100vh - 41px);
     }
-    #preview svg { max-width: 100%; height: auto; }
+    #preview-canvas { width: 100%; }
+    #preview-canvas svg { max-width: 100%; height: auto; }
     .error { color: #f48771; padding: 24px; font-family: monospace; white-space: pre-wrap; }
+    ${VIEW_LOADING_CSS}
   </style>
 </head>
 <body>
@@ -101,7 +149,7 @@ export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
     <span class="meta">${safeUser} / ${displayPath}</span>
     <a href="${escapeHtml(getShareUrl(origin, username, id, folder))}">Share</a>
   </header>
-  <div id="preview"></div>
+  <div id="preview">${VIEW_LOADING_HTML}<div id="preview-canvas"></div></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
   <script type="module" src="/view-mermaid.js" nonce="${nonce}" crossorigin="anonymous"></script>
 </body>
@@ -135,7 +183,7 @@ export function viewOproductPageHtml({ username, id, folder, code, origin, nonce
       display: flex; align-items: center; gap: 12px;
       padding: 8px 16px; background: #252526; border-bottom: 1px solid #3c3c3c;
     }
-    #preview { flex: 1; overflow: auto; padding: 16px; }
+    #preview { position: relative; flex: 1; overflow: auto; padding: 16px; min-height: 0; }
     #preview-canvas { position: relative; inset: auto; min-height: 100%; }
   </style>
 </head>
@@ -153,7 +201,7 @@ export function viewOproductPageHtml({ username, id, folder, code, origin, nonce
       <button type="button" class="mode-btn" data-oproduct-view="journey" aria-pressed="false">Journey</button>
     </div>
   </div>
-  <div id="preview"><div id="preview-canvas"></div></div>
+  <div id="preview">${VIEW_LOADING_HTML}<div id="preview-canvas"></div></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
   <script type="module" src="/view-oproduct.js" nonce="${nonce}" crossorigin="anonymous"></script>
 </body>

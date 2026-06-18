@@ -15,11 +15,16 @@ import {
   setSuppressAutoSave,
   syncBaseline,
 } from './autosave.js';
-import { beginSync, endSync, loadDiagramList, updateListActiveState } from './sidebar.js';
+import { beginSync, endSync, loadDiagramList, setListItemLoading, updateListActiveState } from './sidebar.js';
 import { dom, state, ui, api } from './registry.js';
 import { buildShareUrl, isCurrentDiagram, loadUrl, findListItemByKey } from './utils.js';
+import {
+  beginPreviewLoading,
+  endPreviewLoading,
+  setPreviewLoadingPhase,
+} from '../preview-loading.js';
 
-export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl, number, updatedAt }) {
+export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl, number, updatedAt }, { deferRender = false } = {}) {
   ctx.currentId = id;
   ctx.currentFolder = folder || '';
   ctx.currentNumber = number ?? null;
@@ -37,9 +42,17 @@ export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl
     || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
   dom.shareUrlEl.textContent = ctx.lastShareUrl;
   dom.shareUrlEl.title = ctx.lastShareUrl;
-  ui.scheduleRender();
+  if (!deferRender) {
+    ui.scheduleRender();
+  }
   ui.updateSaveHelpContent();
   updateListActiveState();
+}
+
+async function renderOpenedDiagram() {
+  setPreviewLoadingPhase('render');
+  await ui.renderPreviewNow();
+  await ui.waitForPreviewSettled();
 }
 
 export async function loadDiagram(id, folder = '') {
@@ -48,18 +61,28 @@ export async function loadDiagram(id, folder = '') {
     return false;
   }
 
-  await flushAutoSave();
+  setListItemLoading(folder, id, true);
+  ui.clearPreviewCanvas();
+  beginPreviewLoading('Loading diagram…');
+  try {
+    await flushAutoSave();
+    setPreviewLoadingPhase('fetch');
 
-  const res = await fetch(loadUrl(folder, id));
-  if (!res.ok) {
-    ui.showStatus('Failed to load diagram', true);
-    return false;
+    const res = await fetch(loadUrl(folder, id));
+    if (!res.ok) {
+      ui.showStatus('Failed to load diagram', true);
+      return false;
+    }
+
+    const data = await res.json();
+    openDiagramInEditor(data, { deferRender: true });
+    await renderOpenedDiagram();
+    ui.showStatus(`Loaded ${data.id}`);
+    return true;
+  } finally {
+    setListItemLoading(folder, id, false);
+    endPreviewLoading();
   }
-
-  const data = await res.json();
-  openDiagramInEditor(data);
-  ui.showStatus(`Loaded ${data.id}`);
-  return true;
 }
 
 export async function saveIfDirty({ quiet = true } = {}) {

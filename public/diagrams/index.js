@@ -28,6 +28,9 @@ export function initDiagrams({
   clearPersistentStatus,
   escapeHtml,
   scheduleRender,
+  renderPreviewNow,
+  waitForPreviewSettled,
+  clearPreviewCanvas,
   syncLayoutSelectFromCode,
   setQueryDiagram,
   updateSaveHelpContent,
@@ -36,6 +39,9 @@ export function initDiagrams({
   ui.clearPersistentStatus = clearPersistentStatus;
   ui.escapeHtml = escapeHtml;
   ui.scheduleRender = scheduleRender;
+  ui.renderPreviewNow = renderPreviewNow;
+  ui.waitForPreviewSettled = waitForPreviewSettled;
+  ui.clearPreviewCanvas = clearPreviewCanvas;
   ui.syncLayoutSelectFromCode = syncLayoutSelectFromCode;
   ui.setQueryDiagram = setQueryDiagram;
   ui.updateSaveHelpContent = updateSaveHelpContent;

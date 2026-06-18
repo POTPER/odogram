@@ -18,6 +18,7 @@ import {
   setMermaidZoomControlsEnabled,
   setOproductScrollMode,
 } from './preview-viewport.js';
+import { isPreviewLoadingActive, setPreviewLoadingPhase } from './preview-loading.js';
 
 const preview = document.getElementById('preview');
 const previewCanvas = document.getElementById('preview-canvas');
@@ -29,6 +30,7 @@ const btnZoomReset = document.getElementById('btn-zoom-reset');
 
 let renderTimer = null;
 let renderSeq = 0;
+let renderSettledPromise = Promise.resolve();
 let isOproductMode = false;
 let showStatusFn = () => {};
 let escapeHtmlFn = (str) => str;
@@ -71,77 +73,108 @@ function setPreviewInteractionsEnabled(enabled) {
   setMermaidZoomControlsEnabled(enabled);
 }
 
+function clearPreviewCanvas() {
+  previewCanvas.innerHTML = '';
+  detachPreviewInteraction(null);
+  detachOproductPreview();
+  ctx.lastSvg = '';
+  clearViewBoxState();
+  setOproductPreviewMode(false);
+  setMermaidZoomControlsEnabled(false);
+}
+
 async function renderPreview() {
   const code = ctx.editor.getValue().trim();
   const seq = ++renderSeq;
+  let settleRender;
+  renderSettledPromise = new Promise((resolve) => {
+    settleRender = resolve;
+  });
 
-  if (!code) {
-    previewCanvas.innerHTML = '';
-    detachPreviewInteraction(null);
-    detachOproductPreview();
-    ctx.lastSvg = '';
-    clearViewBoxState();
-    setOproductPreviewMode(false);
-    setMermaidZoomControlsEnabled(false);
-    return;
+  if (isPreviewLoadingActive()) {
+    setPreviewLoadingPhase('render');
   }
 
-  const format = parseDiagramFormat(code);
-
-  if (format === 'oproduct') {
-    detachPreviewInteraction(getPreviewSvg());
-    ctx.lastSvg = '';
-    clearViewBoxState();
-
-    const result = renderOproductPreview({
-      code,
-      container: previewCanvas,
-      escapeHtml: escapeHtmlFn,
-      getSource: getSourceFn,
-      setSource: setSourceFn,
-    });
-
-    if (seq !== renderSeq) return;
-
-    setOproductPreviewMode(result.ok);
-    if (result.ok) {
-      onRenderSuccessFn();
-    }
-    return;
-  }
-
-  detachOproductPreview();
-  setOproductPreviewMode(false);
-
-  const renderId = `diagram-${Date.now()}-${seq}`;
   try {
-    const { svg } = await mermaid.render(renderId, code);
-    if (seq !== renderSeq) return;
-    detachPreviewInteraction(getPreviewSvg());
-    previewCanvas.innerHTML = svg;
-    ctx.lastSvg = svg;
-
-    const svgEl = getPreviewSvg();
-    if (svgEl) {
-      setBaseViewBoxFromSvg(svgEl);
-      attachPreviewInteraction(svgEl);
+    if (!code) {
+      clearPreviewCanvas();
+      return;
     }
 
-    setMermaidZoomControlsEnabled(true);
-    onRenderSuccessFn();
-  } catch (err) {
-    if (seq !== renderSeq) return;
-    previewCanvas.innerHTML = `<div class="preview-error">${escapeHtmlFn(String(err.message || err))}</div>`;
-    detachPreviewInteraction(null);
-    ctx.lastSvg = '';
-    clearViewBoxState();
-    setMermaidZoomControlsEnabled(false);
+    const format = parseDiagramFormat(code);
+
+    if (format === 'oproduct') {
+      detachPreviewInteraction(getPreviewSvg());
+      ctx.lastSvg = '';
+      clearViewBoxState();
+
+      const result = renderOproductPreview({
+        code,
+        container: previewCanvas,
+        escapeHtml: escapeHtmlFn,
+        getSource: getSourceFn,
+        setSource: setSourceFn,
+      });
+
+      if (seq !== renderSeq) return;
+
+      setOproductPreviewMode(result.ok);
+      if (result.ok) {
+        onRenderSuccessFn();
+      }
+      return;
+    }
+
+    detachOproductPreview();
+    setOproductPreviewMode(false);
+
+    const renderId = `diagram-${Date.now()}-${seq}`;
+    try {
+      const { svg } = await mermaid.render(renderId, code);
+      if (seq !== renderSeq) return;
+      detachPreviewInteraction(getPreviewSvg());
+      previewCanvas.innerHTML = svg;
+      ctx.lastSvg = svg;
+
+      const svgEl = getPreviewSvg();
+      if (svgEl) {
+        setBaseViewBoxFromSvg(svgEl);
+        attachPreviewInteraction(svgEl);
+      }
+
+      setMermaidZoomControlsEnabled(true);
+      onRenderSuccessFn();
+    } catch (err) {
+      if (seq !== renderSeq) return;
+      previewCanvas.innerHTML = `<div class="preview-error">${escapeHtmlFn(String(err.message || err))}</div>`;
+      detachPreviewInteraction(null);
+      ctx.lastSvg = '';
+      clearViewBoxState();
+      setMermaidZoomControlsEnabled(false);
+    }
+  } finally {
+    if (seq === renderSeq) {
+      settleRender();
+    }
   }
 }
 
 function scheduleRender() {
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(renderPreview, 300);
+  renderTimer = setTimeout(() => {
+    renderTimer = null;
+    void renderPreview();
+  }, 300);
+}
+
+async function renderPreviewNow() {
+  clearTimeout(renderTimer);
+  renderTimer = null;
+  await renderPreview();
+}
+
+function waitForPreviewSettled() {
+  return renderSettledPromise;
 }
 
 function downloadSvg() {
@@ -192,6 +225,9 @@ export function initPreview({
 
   return {
     scheduleRender,
+    renderPreviewNow,
+    waitForPreviewSettled,
+    clearPreviewCanvas,
     getPreviewSvg,
     fitPreview,
     downloadSvg,
