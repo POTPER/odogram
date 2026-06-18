@@ -133,13 +133,6 @@ export async function saveDiagram(token, username, id, code, folder = '', expect
   };
 }
 
-export async function loadDiagram(token, username, id, folder = '') {
-  const diagrams = await fetchOpenDiagrams(token, username);
-  const match = findDiagramByKey(diagrams, folder, id);
-  if (!match) return null;
-  return match.content ?? '';
-}
-
 export async function loadDiagramDetail(token, username, id, folder = '') {
   const diagrams = await fetchOpenDiagrams(token, username);
   const match = findDiagramByKey(diagrams, folder, id);

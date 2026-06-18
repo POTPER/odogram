@@ -1,0 +1,161 @@
+import {
+  ELK_LAYOUT_INTEGRITY,
+  ELK_LAYOUT_URL,
+  MERMAID_CDN_INTEGRITY,
+  MERMAID_CDN_URL,
+} from './cdn-integrity.js';
+import { getShareUrl } from './github.js';
+
+export function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function toBase64Url(bytes) {
+  const bin = String.fromCharCode(...bytes);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function buildViewCsp(nonce, format) {
+  return [
+    "default-src 'self'",
+    format === 'oproduct'
+      ? `script-src 'self' 'nonce-${nonce}'`
+      : `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
+    `style-src 'self' 'nonce-${nonce}'`,
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
+export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
+  const safeUser = escapeHtml(username);
+  const safeId = escapeHtml(id);
+  const safeFolder = folder ? escapeHtml(folder) : '';
+  const displayPath = folder ? `${safeFolder} / ${safeId}` : safeId;
+  const codeJson = JSON.stringify(code).replace(/</g, '\\u003c');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeId} — odogram</title>
+  <script type="importmap" nonce="${nonce}">
+  {
+    "imports": {
+      "mermaid": "${MERMAID_CDN_URL}",
+      "elk-layouts": "${ELK_LAYOUT_URL}"
+    },
+    "integrity": {
+      "${MERMAID_CDN_URL}": "${MERMAID_CDN_INTEGRITY}",
+      "${ELK_LAYOUT_URL}": "${ELK_LAYOUT_INTEGRITY}"
+    }
+  }
+  </script>
+  <style nonce="${nonce}">
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #1e1e1e;
+      color: #cccccc;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #252526;
+      border-bottom: 1px solid #3c3c3c;
+    }
+    header a {
+      color: #007acc;
+      text-decoration: none;
+    }
+    header a:hover { text-decoration: underline; }
+    .meta { color: #858585; font-size: 13px; }
+    #preview {
+      padding: 32px;
+      display: flex;
+      justify-content: center;
+      overflow: auto;
+    }
+    #preview svg { max-width: 100%; height: auto; }
+    .error { color: #f48771; padding: 24px; font-family: monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">odogram</a>
+    <span class="meta">${safeUser} / ${displayPath}</span>
+    <a href="${escapeHtml(getShareUrl(origin, username, id, folder))}">Share</a>
+  </header>
+  <div id="preview"></div>
+  <script id="diagram-data" type="application/json">${codeJson}</script>
+  <script type="module" src="/view-mermaid.js" nonce="${nonce}" crossorigin="anonymous"></script>
+</body>
+</html>`;
+}
+
+export function viewOproductPageHtml({ username, id, folder, code, origin, nonce }) {
+  const safeUser = escapeHtml(username);
+  const safeId = escapeHtml(id);
+  const safeFolder = folder ? escapeHtml(folder) : '';
+  const displayPath = folder ? `${safeFolder} / ${safeId}` : safeId;
+  const codeJson = JSON.stringify(code).replace(/</g, '\\u003c');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeId} — odogram</title>
+  <link rel="stylesheet" href="/style.css">
+  <style nonce="${nonce}">
+    body { margin: 0; min-height: 100vh; background: #1e1e1e; color: #cccccc; font-family: 'Segoe UI', system-ui, sans-serif; }
+    header {
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+      background: #252526; border-bottom: 1px solid #3c3c3c;
+    }
+    header a { color: #007acc; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    .meta { color: #858585; font-size: 13px; }
+    .oproduct-readonly-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 16px; background: #252526; border-bottom: 1px solid #3c3c3c;
+    }
+    #preview { flex: 1; overflow: auto; padding: 16px; }
+    #preview-canvas { position: relative; inset: auto; min-height: 100%; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">odogram</a>
+    <span class="meta">${safeUser} / ${displayPath}</span>
+    <a href="${escapeHtml(getShareUrl(origin, username, id, folder))}">Share</a>
+  </header>
+  <div class="oproduct-readonly-bar">
+    <span class="meta">Product view</span>
+    <div id="oproduct-view-toolbar" class="oproduct-view-switch" role="group" aria-label="Product view">
+      <button type="button" class="mode-btn active" data-oproduct-view="tree" aria-pressed="true">Tree</button>
+      <button type="button" class="mode-btn" data-oproduct-view="roadmap" aria-pressed="false">Roadmap</button>
+      <button type="button" class="mode-btn" data-oproduct-view="journey" aria-pressed="false">Journey</button>
+    </div>
+  </div>
+  <div id="preview"><div id="preview-canvas"></div></div>
+  <script id="diagram-data" type="application/json">${codeJson}</script>
+  <script type="module" src="/view-oproduct.js" nonce="${nonce}" crossorigin="anonymous"></script>
+</body>
+</html>`;
+}

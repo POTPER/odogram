@@ -3,7 +3,6 @@ import { renderTreeView } from './oproduct/render-tree.js';
 import { renderRoadmapView } from './oproduct/render-roadmap.js';
 import { renderJourneyView } from './oproduct/render-journey.js';
 import { VIEWS } from './oproduct/model.js';
-import { hydrateOfficialRoadmap } from './official-roadmap.js';
 
 const VIEW_STORAGE_KEY = 'odogram-oproduct-view';
 
@@ -13,6 +12,7 @@ let activeContainer = null;
 let viewButtons = [];
 let viewButtonsBound = false;
 let onViewChangeFn = null;
+let sourceHandlers = null;
 
 function dispatchFormatChange(format) {
   window.dispatchEvent(new CustomEvent('odogram:format-change', { detail: { format } }));
@@ -33,13 +33,39 @@ function setViewSwitcherVisible(visible) {
   }
 }
 
+function getRoadmapRenderOptions() {
+  if (!sourceHandlers) return {};
+
+  return {
+    editable: true,
+    dndHandlers: {
+      getSource: sourceHandlers.getSource,
+      setSource: sourceHandlers.setSource,
+      onSourcePatched: handleRoadmapSourcePatched,
+    },
+  };
+}
+
+function handleRoadmapSourcePatched() {
+  if (!sourceHandlers || !activeContainer) return;
+
+  const parsed = parseOproductDocument(sourceHandlers.getSource());
+  if (!parsed.ok) return;
+
+  activeDoc = parsed.doc;
+
+  if (activeView === 'roadmap') {
+    renderActiveView(activeContainer);
+  }
+}
+
 function renderActiveView(container) {
   if (!activeDoc) return;
 
   if (activeView === 'tree') {
     renderTreeView(activeDoc, container);
   } else if (activeView === 'roadmap') {
-    renderRoadmapView(activeDoc, container);
+    renderRoadmapView(activeDoc, container, getRoadmapRenderOptions());
   } else {
     renderJourneyView(activeDoc, container);
   }
@@ -76,19 +102,9 @@ export function initOproductViewSwitcher(containerEl) {
 
 export function detachOproductPreview() {
   activeDoc = null;
+  sourceHandlers = null;
   setViewSwitcherVisible(false);
   dispatchFormatChange('mermaid');
-}
-
-function maybeHydrateOfficialRoadmap() {
-  if (!activeDoc || activeDoc.roadmapSource !== 'github') return;
-
-  hydrateOfficialRoadmap(activeDoc).then((result) => {
-    if (!result.ok || !activeContainer) return;
-    if (activeView === 'roadmap') {
-      renderActiveView(activeContainer);
-    }
-  });
 }
 
 export function renderOproductPreview({
@@ -96,9 +112,13 @@ export function renderOproductPreview({
   container,
   escapeHtml,
   onViewChange,
+  getSource,
+  setSource,
 }) {
   activeContainer = container;
   onViewChangeFn = onViewChange || null;
+  sourceHandlers = getSource && setSource ? { getSource, setSource } : null;
+
   const parsed = parseOproductDocument(code);
 
   if (!parsed.ok) {
@@ -118,7 +138,6 @@ export function renderOproductPreview({
   syncViewButtons();
   renderActiveView(container);
   dispatchFormatChange('oproduct');
-  maybeHydrateOfficialRoadmap();
 
   return { ok: true, view: activeView };
 }

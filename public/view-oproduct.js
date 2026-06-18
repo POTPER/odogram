@@ -3,15 +3,8 @@ import { renderTreeView } from './oproduct/render-tree.js';
 import { renderRoadmapView } from './oproduct/render-roadmap.js';
 import { renderJourneyView } from './oproduct/render-journey.js';
 import { VIEWS } from './oproduct/model.js';
-import { hydrateOfficialRoadmap } from './official-roadmap.js';
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escapeHtml } from './escape-html.js';
+import { disableContextMenu } from './view-shared.js';
 
 const container = document.getElementById('preview-canvas');
 const code = JSON.parse(document.getElementById('diagram-data').textContent);
@@ -48,14 +41,6 @@ if (!parsed.ok) {
   });
 
   renderView(activeView);
-
-  hydrateOfficialRoadmap(parsed.doc).then((result) => {
-    if (result.ok && activeView === 'roadmap') {
-      renderView('roadmap');
-    }
-  });
 }
 
-document.addEventListener('contextmenu', (event) => {
-  event.preventDefault();
-}, { capture: true });
+disableContextMenu();

@@ -8,7 +8,7 @@ import { ctx } from './app-context.js';
 import { initPreview } from './preview.js';
 import { initNameDialog } from './name-dialog.js';
 import { initAuthUI } from './auth-ui.js';
-import { initDiagrams } from './diagrams.js';
+import { initDiagrams } from './diagrams/index.js';
 
 mermaid.registerLayoutLoaders(elkLayouts);
 mermaid.initialize({

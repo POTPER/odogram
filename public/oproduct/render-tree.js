@@ -1,16 +1,5 @@
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function statusLabel(status) {
-  if (status === 'done') return 'Done';
-  if (status === 'deprecated') return 'Deprecated';
-  return 'Plan';
-}
+import { escapeHtml } from '../escape-html.js';
+import { statusLabel } from './render-utils.js';
 
 export function renderTreeView(doc, container) {
   container.innerHTML = '';

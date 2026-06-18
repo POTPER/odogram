@@ -27,7 +27,6 @@ export function parseFrontmatterFields(code) {
     view: 'tree',
     title: '',
     folder: '',
-    roadmap_source: '',
     body,
   };
 
@@ -41,7 +40,6 @@ export function parseFrontmatterFields(code) {
     else if (key === 'view') fields.view = value || 'tree';
     else if (key === 'title') fields.title = value;
     else if (key === 'folder') fields.folder = value;
-    else if (key === 'roadmap_source') fields.roadmap_source = value;
   }
 
   return fields;

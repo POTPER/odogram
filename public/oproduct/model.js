@@ -1,6 +1,6 @@
 export const VIEWS = ['tree', 'roadmap', 'journey'];
 
-export const STATUSES = ['done', 'plan', 'deprecated'];
+export const STATUSES = ['done', 'plan', 'deprecated', 'progress'];
 
 export function createEmptyDoc(title = '') {
   return {

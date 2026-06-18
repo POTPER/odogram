@@ -2,7 +2,6 @@
 format: oproduct
 view: tree
 title: odogram — 产品构成与能力地图
-roadmap_source: github
 ---
 
 @view tree

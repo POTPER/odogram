@@ -5,9 +5,7 @@
   "compatibility_date": "2026-06-01",
   "workers_dev": true,
   "vars": {
-    "APP_URL": "https://gram.yekai.ltd",
-    "OFFICIAL_PROJECT_OWNER": "",
-    "OFFICIAL_PROJECT_NUMBER": ""
+    "APP_URL": "https://gram.yekai.ltd"
   },
   "routes": [
     {

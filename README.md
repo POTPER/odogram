@@ -6,8 +6,8 @@ Cursor-style Mermaid editor. Diagrams are saved to **your own GitHub repository*
 
 - Live Mermaid preview with Cursor dark theme
 - GitHub OAuth login
-- Save diagrams to `{username}/odogram-diagrams/diagrams/*.mmd`
-- Share public links at `/view/{username}/{id}`
+- Save diagrams as GitHub Issues in `{username}/odogram-diagrams` (label `odogram:diagram`)
+- Share public links at `/view/{username}/{folder}/{id}`
 - Download SVG, copy source, load example
 
 ## Prerequisites
@@ -94,25 +94,31 @@ Re-run `wrangler secret put` if secrets were only in `.dev.vars`.
 ## Project structure
 
 ```
-public/           Static assets (editor UI)
+public/                 Static assets (editor UI)
   index.html
   app.js
-  theme.js
-  style.css
+  preview.js
+  style.css             @imports styles/*.css
+  styles/               base, sidebar, workbench, oproduct CSS
+  diagrams/             Sidebar CRUD, autosave, examples (ES modules)
+  oproduct/             oproduct DSL parser + renderers
   diagrams/example.mmd
+  diagrams/oproduct-欢迎.oprd
 src/
-  worker.js       Route handler
-  auth.js         GitHub OAuth + session cookie
-  github.js       GitHub Contents API
-wrangler.jsonc    Cloudflare Worker config
+  worker.js             Route dispatcher
+  api-handlers.js       /api/* and /view/* handlers
+  view-pages.js         Share page HTML templates
+  auth.js               GitHub OAuth + session cookie
+  github.js             GitHub Issue storage (GraphQL + REST)
+wrangler.jsonc          Cloudflare Worker config
 ```
 
 ## How saving works
 
-1. User logs in via GitHub OAuth (`repo` scope).
-2. On first save, odogram creates a public repo `{username}/odogram-diagrams` if it doesn't exist.
-3. Each diagram is committed as `diagrams/{id}.mmd` via the GitHub Contents API.
-4. Share links read from the public raw URL — no diagram data is stored on Cloudflare.
+1. User logs in via GitHub OAuth (`public_repo` scope).
+2. On first save, odogram ensures a public repo `{username}/odogram-diagrams` exists.
+3. Each diagram is stored as a GitHub Issue with label `odogram:diagram`; source lives in the issue body (YAML frontmatter + diagram text).
+4. Share links are served by the Worker at `/view/...` — diagram content is read from GitHub at request time; no diagram data is stored on Cloudflare.
 
 ## API routes
 
@@ -125,34 +131,14 @@ wrangler.jsonc    Cloudflare Worker config
 | `POST /api/save` | required | Save diagram to GitHub |
 | `GET /api/load?id=` | required | Load diagram from GitHub |
 | `GET /api/list` | required | List user's diagrams |
-| `GET /api/official-roadmap` | public | Official oproduct roadmap from GitHub Project |
-| `GET /view/:user/:id` | public | Read-only share page |
+| `POST /api/rename` | required | Rename a diagram |
+| `POST /api/delete` | required | Delete a diagram |
+| `POST /api/move` | required | Move a diagram between folders |
+| `GET /view/:user/:id` | public | Read-only share page (optional `/view/:user/:folder/:id`) |
 
-## Official roadmap (GitHub Project)
+## oproduct Roadmap drag editing
 
-The default product map (`oproduct-欢迎.oprd`) can sync its **Roadmap** view from a maintainer-owned GitHub Project. Tree and Journey stay in the static `.oprd` file; if the API is unavailable, Roadmap falls back to the handwritten `milestone` / `deliver` blocks.
-
-### Setup
-
-1. Create a **Project v2** on the odogram source repo (not user `odogram-diagrams` repos), e.g. `odogram Roadmap`.
-2. Use **Status** (Todo / In Progress / Done) and **Iteration** fields. Iteration names map to milestones (`P1.5`, `P2`, etc.).
-3. Prefer **Draft issues** for roadmap cards. Real issues are included only when labeled `odogram:roadmap`; issues labeled `odogram:diagram` are always excluded.
-4. Create a PAT with `read:project` scope and configure:
-
-```bash
-npx wrangler secret put GITHUB_OFFICIAL_TOKEN
-```
-
-In `wrangler.jsonc` vars (or `.dev.vars` for local dev):
-
-```env
-OFFICIAL_PROJECT_OWNER=your-github-login
-OFFICIAL_PROJECT_NUMBER=1
-```
-
-5. Ensure `public/diagrams/oproduct-欢迎.oprd` frontmatter includes `roadmap_source: github`.
-
-If `GITHUB_OFFICIAL_TOKEN` or project vars are missing, the site silently uses the static roadmap in the `.oprd` file.
+In the editor, you can drag milestones and deliverables in the oproduct **Roadmap** preview. Changes are written back to the `@view roadmap` section in the source.
 
 ## License
 

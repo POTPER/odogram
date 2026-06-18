@@ -1,43 +1,20 @@
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { bindRoadmapDnD } from './roadmap-dnd.js';
+import { escapeHtml } from '../escape-html.js';
+import { statusLabel } from './render-utils.js';
 
-function statusLabel(status) {
-  if (status === 'done') return 'Done';
-  if (status === 'progress') return 'In Progress';
-  if (status === 'deprecated') return 'Deprecated';
-  return 'Plan';
-}
+export function renderRoadmapView(doc, container, options = {}) {
+  const { editable = true, dndHandlers = null } = options;
+  const isReadonly = !editable;
 
-function renderDeliverText(deliver) {
-  const text = escapeHtml(deliver.text);
-  if (deliver.url) {
-    return `<a class="oproduct-deliver-link" href="${escapeHtml(deliver.url)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-  }
-  return `<span class="oproduct-deliver-text">${text}</span>`;
-}
-
-export function renderRoadmapView(doc, container) {
   container.innerHTML = '';
   container.className = 'oproduct-preview oproduct-roadmap';
+  if (isReadonly) {
+    container.classList.add('oproduct-roadmap-readonly');
+  }
 
   const header = document.createElement('div');
   header.className = 'oproduct-header';
-
-  let headerHtml = `<h2 class="oproduct-title">${escapeHtml(doc.title || 'Roadmap')}</h2>`;
-  if (doc.roadmapMeta?.synced && doc.roadmapMeta.projectUrl) {
-    const projectLabel = escapeHtml(doc.roadmapMeta.projectTitle || 'GitHub Project');
-    headerHtml += `
-      <p class="oproduct-roadmap-sync">
-        Synced from
-        <a href="${escapeHtml(doc.roadmapMeta.projectUrl)}" target="_blank" rel="noopener noreferrer">${projectLabel}</a>
-      </p>`;
-  }
-  header.innerHTML = headerHtml;
+  header.innerHTML = `<h2 class="oproduct-title">${escapeHtml(doc.title || 'Roadmap')}</h2>`;
   container.appendChild(header);
 
   const milestones = doc.views.roadmap.milestones;
@@ -52,14 +29,30 @@ export function renderRoadmapView(doc, container) {
   const timeline = document.createElement('div');
   timeline.className = 'oproduct-roadmap-timeline';
 
-  milestones.forEach((milestone) => {
+  milestones.forEach((milestone, milestoneIndex) => {
     const block = document.createElement('section');
     block.className = 'oproduct-milestone';
+    block.dataset.milestoneIndex = String(milestoneIndex);
+
+    const head = document.createElement('div');
+    head.className = 'oproduct-milestone-head';
+
+    const handle = document.createElement('span');
+    handle.className = 'oproduct-drag-handle oproduct-milestone-handle';
+    handle.draggable = true;
+    handle.setAttribute('aria-label', 'Drag milestone');
+    handle.textContent = '⋮⋮';
+    head.appendChild(handle);
 
     const title = document.createElement('h3');
     title.className = 'oproduct-milestone-title';
     title.textContent = milestone.id;
-    block.appendChild(title);
+    head.appendChild(title);
+    block.appendChild(head);
+
+    const list = document.createElement('ul');
+    list.className = 'oproduct-deliver-list';
+    list.dataset.milestoneIndex = String(milestoneIndex);
 
     if (!milestone.delivers.length) {
       const empty = document.createElement('p');
@@ -67,22 +60,38 @@ export function renderRoadmapView(doc, container) {
       empty.textContent = 'No deliverables.';
       block.appendChild(empty);
     } else {
-      const list = document.createElement('ul');
-      list.className = 'oproduct-deliver-list';
-      milestone.delivers.forEach((deliver) => {
+      milestone.delivers.forEach((deliver, deliverIndex) => {
         const li = document.createElement('li');
         li.className = `oproduct-deliver status-${deliver.status}`;
+        li.dataset.milestoneIndex = String(milestoneIndex);
+        li.dataset.deliverIndex = String(deliverIndex);
+        li.draggable = true;
         li.innerHTML = `
+          <span class="oproduct-drag-handle oproduct-deliver-handle" aria-hidden="true">⋮⋮</span>
           <span class="oproduct-status-pill">${statusLabel(deliver.status)}</span>
-          ${renderDeliverText(deliver)}
+          <span class="oproduct-deliver-text">${escapeHtml(deliver.text)}</span>
         `;
         list.appendChild(li);
       });
       block.appendChild(list);
     }
 
+    const appendZone = document.createElement('div');
+    appendZone.className = 'oproduct-deliver-append';
+    appendZone.dataset.milestoneIndex = String(milestoneIndex);
+    appendZone.dataset.dropKind = 'append';
+    block.appendChild(appendZone);
+
     timeline.appendChild(block);
   });
 
   container.appendChild(timeline);
+
+  if (dndHandlers && !isReadonly) {
+    bindRoadmapDnD(container, {
+      ...dndHandlers,
+      doc,
+      editable: true,
+    });
+  }
 }

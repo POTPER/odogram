@@ -7,13 +7,13 @@ function parseStatus(raw) {
 }
 
 function parseFeatureLine(text) {
-  const match = text.match(/^feature\s+(.+?)(?:\s+\[(done|plan|deprecated)\])?\s*$/i);
+  const match = text.match(/^feature\s+(.+?)(?:\s+\[(done|plan|deprecated|progress)\])?\s*$/i);
   if (!match) return null;
   return { text: match[1].trim(), status: parseStatus(match[2]) };
 }
 
 function parseDeliverLine(text) {
-  const match = text.match(/^deliver\s+(.+?)(?:\s+\[(done|plan|deprecated)\])?\s*$/i);
+  const match = text.match(/^deliver\s+(.+?)(?:\s+\[(done|plan|deprecated|progress)\])?\s*$/i);
   if (!match) return null;
   return { text: match[1].trim(), status: parseStatus(match[2]) };
 }
@@ -28,8 +28,6 @@ export function parseOproductDocument(source) {
   const fields = parseFrontmatterFields(source);
   const doc = createEmptyDoc(fields.title);
   doc.defaultView = VIEWS.includes(fields.view) ? fields.view : 'tree';
-  doc.roadmapSource = fields.roadmap_source === 'github' ? 'github' : '';
-  doc.roadmapMeta = null;
 
   const body = fields.body;
   if (!body) {

@@ -1,10 +1,4 @@
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escapeHtml } from '../escape-html.js';
 
 export function renderJourneyView(doc, container) {
   container.innerHTML = '';
