@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>odogram — Mermaid Editor</title>
+  <title>odogram — 为自己做的 Mermaid 编辑器</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <script type="importmap">
@@ -78,40 +78,6 @@
         <div class="settings-menu">
           <button id="btn-settings" type="button" class="settings-trigger"
                   aria-haspopup="dialog" aria-expanded="false" title="设置" aria-label="设置">设置</button>
-          <div id="settings-popover" class="settings-popover popover" hidden>
-            <div class="settings-heading">设置</div>
-
-            <section class="settings-section">
-              <h3 class="settings-section-title">保存与同步</h3>
-              <div id="settings-save-info" class="settings-save-info"></div>
-              <p class="settings-hint">编辑后约 2 秒自动保存到 GitHub Issue</p>
-            </section>
-
-            <section class="settings-section">
-              <h3 class="settings-section-title">编辑器</h3>
-              <label class="settings-field layout-select-wrap">
-                Mermaid 布局
-                <select id="layout-select" title="Diagram layout">
-                  <option value="dagre">Default</option>
-                  <option value="elk">Orthogonal</option>
-                </select>
-              </label>
-            </section>
-
-            <section class="settings-section">
-              <h3 class="settings-section-title">账户</h3>
-              <div id="settings-account" class="settings-account"></div>
-            </section>
-
-            <section class="settings-section settings-section--disabled">
-              <h3 class="settings-section-title">即将推出</h3>
-              <ul class="settings-coming-soon">
-                <li>GitLab 账户绑定</li>
-                <li>自动保存间隔</li>
-                <li>主题切换</li>
-              </ul>
-            </section>
-          </div>
         </div>
 
         <div class="view-layout-menu">
@@ -195,7 +161,7 @@
               <div class="pane-header-actions source-actions">
                 <button id="btn-copy" type="button" class="pane-action-btn" title="Copy source">Copy</button>
                 <button id="btn-example" type="button" class="pane-action-btn" title="Load Mermaid tutorial / 加载 Mermaid 教程">Example</button>
-                <button id="btn-product" type="button" class="pane-action-btn" title="Reload product map / 重新加载产品构成图">Product</button>
+                <button id="btn-product" type="button" class="pane-action-btn" title="Reload product map / 重新加载为什么做 odogram">Product</button>
                 <button type="button" id="btn-expand-source" class="source-expand-btn" hidden title="Expand to split">Expand to split</button>
               </div>
             </div>
@@ -232,7 +198,7 @@
 
     <footer class="status-bar" role="contentinfo">
       <div class="status-bar-group status-bar-left">
-        <button type="button" class="status-bar-btn" disabled>Console</button>
+        <button id="btn-status-console" type="button" class="status-bar-btn">Console</button>
         <button type="button" class="status-bar-btn" disabled>Shortcuts</button>
         <button id="btn-status-assets" type="button" class="status-bar-btn">资源</button>
       </div>
@@ -242,6 +208,16 @@
         <button type="button" class="status-bar-btn" disabled>Share</button>
       </div>
     </footer>
+
+    <div id="console-log-backdrop" class="console-log-backdrop" hidden>
+      <div id="console-log-panel" class="console-log-panel" role="dialog" aria-labelledby="console-log-title" aria-modal="true">
+        <header class="console-log-header">
+          <h2 id="console-log-title">Console</h2>
+          <button id="console-log-close" type="button" class="console-log-close" aria-label="关闭">×</button>
+        </header>
+        <ul id="console-log-list" class="console-log-list"></ul>
+      </div>
+    </div>
 
     <div id="assets-panel-backdrop" class="assets-panel-backdrop" hidden>
       <div id="assets-panel" class="assets-panel" role="dialog" aria-labelledby="assets-panel-title">
@@ -260,6 +236,55 @@
             <p class="assets-panel-placeholder">资源管理功能设计中，敬请期待。</p>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="settings-panel-backdrop" class="settings-panel-backdrop" hidden>
+      <div id="settings-panel" class="settings-panel" role="dialog" aria-labelledby="settings-panel-title" aria-modal="true">
+        <header class="settings-panel-header">
+          <h2 id="settings-panel-title">设置</h2>
+          <button id="settings-panel-close" type="button" class="settings-panel-close" aria-label="关闭">×</button>
+        </header>
+        <div class="settings-panel-body">
+          <nav class="settings-panel-nav" aria-label="设置分类">
+            <button type="button" class="settings-nav-item active" data-settings-pane="save">保存与同步</button>
+            <button type="button" class="settings-nav-item" data-settings-pane="editor">编辑器</button>
+            <button type="button" class="settings-nav-item" data-settings-pane="account">账户</button>
+            <button type="button" class="settings-nav-item" data-settings-pane="coming-soon">即将推出</button>
+          </nav>
+          <div class="settings-panel-main">
+            <section id="settings-pane-save" class="settings-pane active">
+              <h3 class="settings-pane-title">保存与同步</h3>
+              <div id="settings-save-info" class="settings-save-info"></div>
+              <p class="settings-hint">编辑后约 2 秒自动保存到 GitHub Issue</p>
+            </section>
+            <section id="settings-pane-editor" class="settings-pane">
+              <h3 class="settings-pane-title">编辑器</h3>
+              <label class="settings-field layout-select-wrap">
+                Mermaid 布局
+                <select id="layout-select" title="Diagram layout">
+                  <option value="dagre">Default</option>
+                  <option value="elk">Orthogonal</option>
+                </select>
+              </label>
+            </section>
+            <section id="settings-pane-account" class="settings-pane">
+              <h3 class="settings-pane-title">账户</h3>
+              <div id="settings-account" class="settings-account"></div>
+            </section>
+            <section id="settings-pane-coming-soon" class="settings-pane">
+              <h3 class="settings-pane-title">即将推出</h3>
+              <ul class="settings-coming-soon">
+                <li>GitLab 账户绑定</li>
+                <li>自动保存间隔</li>
+                <li>主题切换</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+        <footer class="settings-panel-footer">
+          <button id="settings-panel-done" type="button" class="settings-panel-done primary">关闭</button>
+        </footer>
       </div>
     </div>
 

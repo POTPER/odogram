@@ -1,6 +1,16 @@
 # odogram
 
-Cursor-style Mermaid editor. Diagrams are saved to **your own GitHub repository** — the site is only the editor.
+我做 odogram，是因为自己在用 AI 梳理产品逻辑时，经常拿到 Mermaid 格式的流程图——需要有个地方存下来，既对接开发资源，也帮自己把思路理清。
+
+我试过 **mermaid.ai**：粘贴很方便，但免费只能存 3 个项目，想多存就要开会员。也看过 GitHub 上的开源编辑器，大多没有可靠的云端存储，本地文件容易丢，做不到「打开就用、即插即用」。我想要的是：**打开网页就能编辑，图存在 GitHub 这种我日常就在用的地方，改完还能分享链接。**
+
+于是按这个习惯做了 odogram。它优先服务我自己的 workflow，不承诺讨好所有人。**若你也恰好有同样的痛点，欢迎一起用。**
+
+odogram is a Mermaid editor I built for **my own** workflow: save AI-generated diagrams to GitHub, use in the browser without self-hosting storage, and share via link. If that matches you, you're welcome to use it.
+
+Diagrams are saved to **your own GitHub repository** — the site is only the editor.
+
+这不是 mermaid.ai 的替代品、不是团队协作文档、不是「人人适用的画图 SaaS」。Roadmap 里的功能，是因为我将来可能需要，不是对外的功能承诺。
 
 ## Features
 

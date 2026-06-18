@@ -16,6 +16,13 @@ import { initSettingsUI } from './settings-ui.js';
 import { initShareUI } from './share-ui.js';
 import { updateToolbarDocInfo } from './toolbar-doc.js';
 import { initDiagrams } from './diagrams/index.js';
+import {
+  appendStatusLog,
+  clearStatusBarTransient,
+  initStatusLog,
+  renderLatest,
+} from './status-log.js';
+import { initConsoleLogPanel, closeConsoleLogPanel } from './console-log-panel.js';
 
 mermaid.registerLayoutLoaders(elkLayouts);
 mermaid.initialize({
@@ -49,25 +56,22 @@ let diagramApi;
 
 function showStatus(message, options = false) {
   const opts = typeof options === 'boolean' ? { isError: options } : options;
-  const { isError = false, persistent = false } = opts;
+  const { isError = false, persistent = false, timestamp } = opts;
 
-  statusEl.textContent = message;
-  statusEl.classList.toggle('error', isError);
-  statusEl.classList.toggle('syncing', persistent);
-
-  clearTimeout(showStatus._timer);
-  if (!persistent) {
-    showStatus._timer = setTimeout(() => {
-      statusEl.textContent = '';
-      statusEl.classList.remove('error', 'syncing');
-    }, 4000);
+  if (persistent) {
+    statusEl.textContent = message;
+    statusEl.classList.toggle('error', isError);
+    statusEl.classList.add('syncing');
+    return;
   }
+
+  statusEl.classList.remove('syncing');
+  appendStatusLog(message, { isError, timestamp });
 }
 
 function clearPersistentStatus() {
-  clearTimeout(showStatus._timer);
-  statusEl.textContent = '';
-  statusEl.classList.remove('error', 'syncing');
+  clearStatusBarTransient();
+  renderLatest();
 }
 
 function escapeHtml(str) {
@@ -188,10 +192,13 @@ async function init() {
   initLoginDialog();
   initAiDialog();
   initAssetsPanel();
+  initConsoleLogPanel();
+  initStatusLog();
   initToolbarDocEdit({ showStatus });
   ctx.closeLoginDialog = closeLoginDialog;
   ctx.closeAiDialog = closeAiDialog;
   ctx.closeAssetsPanel = closeAssetsPanel;
+  ctx.closeConsoleLogPanel = closeConsoleLogPanel;
   authApi = initAuthUI({ showStatus, escapeHtml });
   ctx.authUI = authApi;
   settingsApi = initSettingsUI({
@@ -199,6 +206,7 @@ async function init() {
     escapeHtml,
   });
   ctx.settingsUI = settingsApi;
+  ctx.closeSettingsPanel = settingsApi.closeSettingsPanel;
   shareApi = initShareUI({ showStatus });
   ctx.shareUI = shareApi;
   diagramApi = initDiagrams({
@@ -229,6 +237,7 @@ async function init() {
       closeLoginDialog();
       closeAiDialog();
       closeAssetsPanel();
+      closeConsoleLogPanel();
     },
   });
   bindToolbar();

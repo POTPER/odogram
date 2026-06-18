@@ -46,7 +46,7 @@ export function updateSaveHelpContent() {
   if (!ctx.user?.login) {
     html = `
       <p><strong>保存位置（你的 GitHub）</strong></p>
-      <p class="hint">请先 Login with GitHub。登录后编辑内容会自动保存到你自己的仓库，odogram 不存储 diagram 内容。</p>
+      <p class="hint">登录后图会存进<strong>你自己的</strong> GitHub Issue，不限 3 个项目；odogram 不存你的 diagram。打开网页粘贴 AI 或 mermaid.ai 的 Mermaid 即可用。</p>
       <code class="save-help-path">github.com/{你的用户名}/odogram-diagrams/issues/{number}</code>
     `;
   } else if (ctx.currentId) {

@@ -1,14 +1,18 @@
 ---
 format: oproduct
 view: tree
-title: odogram — 产品构成与能力地图
+title: odogram — 为自己做的编辑器（恰好也欢迎你）
 ---
 
 @view tree
-module 产品定位
-  feature Cursor 风格 Mermaid 在线编辑器 [done]
-  feature 图表保存在用户 GitHub Issue 站点只做编辑与分享 [done]
-  feature 部署于 Cloudflare Worker 无服务端存图 [done]
+module 为什么做
+  feature AI 设计逻辑时常产出 Mermaid 图需要保存供开发与理清思路 [done]
+  feature 曾用 mermaid.ai 粘贴方便但免费只能存 3 个项目 [done]
+  feature 看过不少开源编辑器无云端存储本地文件容易丢 [done]
+  feature 希望存在 GitHub 这类自己日常在用的地方 [done]
+  feature 打开网页就能用不必自己搭后端 [done]
+  feature 改完要能分享链接给别人看 [done]
+  feature 若你也恰好需要同样的东西 欢迎用 不承诺适合所有人 [done]
 
 module 编辑器
   feature CodeMirror 源码编辑语法高亮 [done]
@@ -67,21 +71,21 @@ milestone P2
   deliver oproduct 导出 PNG [plan]
 
 @view journey
+persona 作者本人
+  step AI 给出 Mermaid 流程图或逻辑图 -> 粘贴进 odogram 整理
+  step 登录 GitHub -> 自动保存到 Issue 不靠本地文件
+  step 对接开发或给别人看 -> 发 /view 分享链接
+
 persona 访客
-  step 打开 odogram -> 默认看到产品构成图 tree 视图
-  step 切换 Roadmap 或 Journey -> 了解规划与用户路径
-  step 点击 Example -> 加载 Mermaid 双语教程图
+  step 打开 odogram -> 先看为什么做 是否也有 AI 出图或 mermaid.ai 限额的问题
+  step 觉得恰好匹配 -> 登录 GitHub 打开网页即用
+  step 觉得不匹配 -> 仍可看 Example 教程或只读分享页
 
-persona 新用户
-  step GitHub 登录 -> 授权 repo 范围
-  step 编辑图表 -> 2s 后自动保存到 Issue
-  step 侧栏 My Diagrams -> 新建文件夹与管理图表
-
-persona 深度编辑
-  step 编写 Mermaid 源码 -> 右侧实时预览
-  step 切换 Focus 模式 -> 在预览中理清逻辑
-  step 双击节点标签 -> 改文案同步回左侧源码
+persona 恰好匹配的你
+  step 从 AI 或 mermaid.ai 粘贴 Mermaid -> 在 odogram 编辑预览
+  step GitHub 登录 -> 图表存进你自己的 odogram-diagrams 不限 3 个
+  step 分享链接 -> 收件人无需登录
 
 persona 分享收件人
-  step 打开分享链接 /view/... -> 只读预览
-  step 查看 Mermaid SVG 或 oproduct 产品视图 -> 无需登录
+  step 打开 /view/... -> 只读预览
+  step 无需注册 -> 看完即走

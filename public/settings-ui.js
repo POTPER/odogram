@@ -1,30 +1,76 @@
 import { ctx } from './app-context.js';
 import { openLoginDialog } from './login-dialog.js';
 import { closeAiDialog } from './ai-dialog.js';
+
 const btnSettings = document.getElementById('btn-settings');
-const settingsPopover = document.getElementById('settings-popover');
+const settingsPanelBackdrop = document.getElementById('settings-panel-backdrop');
+const settingsPanel = document.getElementById('settings-panel');
+const settingsPanelClose = document.getElementById('settings-panel-close');
+const settingsPanelDone = document.getElementById('settings-panel-done');
+const settingsNavItems = document.querySelectorAll('.settings-nav-item');
+const settingsPanes = document.querySelectorAll('.settings-pane');
 const settingsAccount = document.getElementById('settings-account');
 
 let settingsOpen = false;
 let updateSaveHelpContentFn = () => {};
 let escapeHtmlFn = (str) => str;
 
+function onSettingsPanelKeydown(event) {
+  if (settingsPanelBackdrop?.hidden) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    setSettingsOpen(false);
+  }
+}
+
+function setActiveSettingsPane(paneId) {
+  settingsNavItems.forEach((item) => {
+    const active = item.dataset.settingsPane === paneId;
+    item.classList.toggle('active', active);
+  });
+  settingsPanes.forEach((pane) => {
+    pane.classList.toggle('active', pane.id === `settings-pane-${paneId}`);
+  });
+}
+
+function closeOtherOverlays() {
+  ctx.layoutUI?.setViewLayoutOpen?.(false);
+  ctx.layoutUI?.setSidebarOpen?.(false);
+  ctx.authUI?.setUserMenuOpen?.(false);
+  ctx.shareUI?.setShareOpen?.(false);
+  ctx.closeAssetsPanel?.();
+  ctx.closeConsoleLogPanel?.();
+  ctx.closeLoginDialog?.();
+  closeAiDialog();
+}
+
 export function setSettingsOpen(open) {
   settingsOpen = open;
-  if (settingsPopover) settingsPopover.hidden = !open;
+  if (settingsPanelBackdrop) settingsPanelBackdrop.hidden = !open;
   if (btnSettings) {
     btnSettings.classList.toggle('active', open);
     btnSettings.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
+
   if (open) {
+    closeOtherOverlays();
     updateSaveHelpContentFn();
     updateSettingsAccount();
-    ctx.layoutUI?.setViewLayoutOpen?.(false);
-    ctx.authUI?.setUserMenuOpen?.(false);
-    ctx.shareUI?.setShareOpen?.(false);
-    closeAiDialog();
+    document.addEventListener('keydown', onSettingsPanelKeydown);
+    settingsPanelClose?.focus();
+  } else {
+    document.removeEventListener('keydown', onSettingsPanelKeydown);
   }
 }
+
+export function closeSettingsPanel() {
+  setSettingsOpen(false);
+}
+
+export function openSettingsPanel() {
+  setSettingsOpen(true);
+}
+
 export function toggleSettings(event) {
   event?.stopPropagation();
   setSettingsOpen(!settingsOpen);
@@ -61,13 +107,26 @@ export function initSettingsUI({ updateSaveHelpContent, escapeHtml } = {}) {
   escapeHtmlFn = escapeHtml ?? escapeHtmlFn;
 
   btnSettings?.addEventListener('click', toggleSettings);
-  settingsPopover?.addEventListener('click', (event) => event.stopPropagation());
-  document.addEventListener('click', () => {
-    if (settingsOpen) setSettingsOpen(false);
+
+  settingsNavItems.forEach((item) => {
+    item.addEventListener('click', () => {
+      setActiveSettingsPane(item.dataset.settingsPane);
+    });
   });
+
+  settingsPanelClose?.addEventListener('click', () => setSettingsOpen(false));
+  settingsPanelDone?.addEventListener('click', () => setSettingsOpen(false));
+
+  settingsPanelBackdrop?.addEventListener('click', (event) => {
+    if (event.target === settingsPanelBackdrop) setSettingsOpen(false);
+  });
+
+  settingsPanel?.addEventListener('click', (event) => event.stopPropagation());
 
   return {
     setSettingsOpen,
+    closeSettingsPanel,
+    openSettingsPanel,
     toggleSettings,
     updateSettingsAccount,
   };

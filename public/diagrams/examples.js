@@ -11,6 +11,7 @@ import { ui } from './registry.js';
 import { loadUrl } from './utils.js';
 import { findGuestExample } from './guest-catalog.js';
 import { updateListActiveState } from './sidebar.js';
+import { switchStatusLogScope } from '../status-log.js';
 import {
   beginPreviewLoading,
   endPreviewLoading,
@@ -36,6 +37,7 @@ async function applyStaticSource(text, { guestExampleId = null } = {}) {
   ui.updateSaveHelpContent();
   ui.updateToolbarDocInfo();
   updateListActiveState();
+  switchStatusLogScope();
 }
 
 async function renderLoadedSource() {
@@ -78,7 +80,7 @@ export async function loadWelcome() {
 export async function loadProductExample() {
   try {
     await loadWelcome();
-    ui.showStatus('产品构成图已加载');
+    ui.showStatus('为什么做 odogram 已加载');
   } catch (err) {
     ui.showStatus(err.message || 'Failed to load product map', true);
   }

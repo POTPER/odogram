@@ -1,7 +1,7 @@
 export const GUEST_EXAMPLES = [
   {
     id: 'oproduct-欢迎',
-    label: '产品构成图',
+    label: '为什么做 odogram',
     path: '/diagrams/oproduct-欢迎.oprd',
     folder: '入门',
   },

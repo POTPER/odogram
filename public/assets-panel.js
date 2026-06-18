@@ -23,6 +23,7 @@ export function openAssetsPanel() {
   ctx.authUI?.setUserMenuOpen?.(false);
   ctx.closeLoginDialog?.();
   ctx.closeAiDialog?.();
+  ctx.closeConsoleLogPanel?.();
 
   assetsPanelBackdrop.hidden = false;
   document.addEventListener('keydown', onAssetsPanelKeydown);

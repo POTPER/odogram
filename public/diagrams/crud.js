@@ -18,6 +18,7 @@ import {
 import { beginSync, endSync, loadDiagramList, setListItemLoading, updateListActiveState } from './sidebar.js';
 import { dom, state, ui, api } from './registry.js';
 import { buildShareUrl, isCurrentDiagram, loadUrl, findListItemByKey } from './utils.js';
+import { switchStatusLogScope } from '../status-log.js';
 import {
   beginPreviewLoading,
   endPreviewLoading,
@@ -48,6 +49,7 @@ export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl
   ui.updateSaveHelpContent();
   ui.updateToolbarDocInfo();
   updateListActiveState();
+  switchStatusLogScope();
 }
 
 async function renderOpenedDiagram() {
@@ -78,7 +80,7 @@ export async function loadDiagram(id, folder = '') {
     const data = await res.json();
     openDiagramInEditor(data, { deferRender: true });
     await renderOpenedDiagram();
-    ui.showStatus(`Loaded ${data.id}`);
+    ui.showStatus(`Loaded ${data.id}`, { timestamp: data.updatedAt });
     return true;
   } finally {
     setListItemLoading(folder, id, false);
@@ -113,7 +115,7 @@ export async function saveDiagramWithId(id, { quiet = false, folder, code } = {}
   if (!quiet) dom.btnSave.disabled = true;
   state.saveInFlight = true;
   if (!quiet) beginSync('save', targetFolder, targetId);
-  if (quiet) ui.showStatus('保存中…');
+  if (quiet) ui.showStatus('保存中…', { persistent: true });
 
   try {
     const body = {
@@ -155,10 +157,13 @@ export async function saveDiagramWithId(id, { quiet = false, folder, code } = {}
 
     if (!quiet) endSync('save', targetFolder, targetId);
     if (quiet) {
-      ui.showStatus('已保存');
+      ui.showStatus('已保存', { timestamp: data.updatedAt });
     } else {
       await loadDiagramList();
-      ui.showStatus(`Saved to GitHub as ${ctx.currentFolder ? `${ctx.currentFolder}/` : ''}${ctx.currentId}`);
+      ui.showStatus(
+        `Saved to GitHub as ${ctx.currentFolder ? `${ctx.currentFolder}/` : ''}${ctx.currentId}`,
+        { timestamp: data.updatedAt },
+      );
     }
   } catch (err) {
     if (!quiet) endSync('save', targetFolder, targetId);
@@ -241,6 +246,7 @@ function commitRenameLocally(oldId, newId, folder = '', { shareUrl, githubUrl, n
     ctx.shareUI?.updateShareUI?.();
     ui.updateSaveHelpContent();
     ui.updateToolbarDocInfo();
+    switchStatusLogScope();
   }
 }
 
@@ -268,7 +274,7 @@ export async function renameDiagram(oldId, newId, folder = '') {
     });
     endSync('rename', folder, oldId);
     await loadDiagramList();
-    ui.showStatus(`已重命名为 ${newId}`);
+    ui.showStatus(`已重命名为 ${newId}`, { timestamp: data.updatedAt });
   } catch (err) {
     endSync('rename', folder, oldId);
     ui.showStatus(err.message || '重命名失败', true);
@@ -311,11 +317,12 @@ export async function moveDiagram(id, fromFolder = '', toFolder = '') {
         || getGitHubFileUrl(ctx.user.username, ctx.currentId, ctx.currentFolder, ctx.currentNumber);
       ctx.shareUI?.updateShareUI?.();
       ui.updateSaveHelpContent();
+      switchStatusLogScope();
     }
 
     endSync('rename', fromFolder, id);
     await loadDiagramList();
-    ui.showStatus(`已移动到 ${folderLabel(toFolder)}`);
+    ui.showStatus(`已移动到 ${folderLabel(toFolder)}`, { timestamp: data.updatedAt });
   } catch (err) {
     endSync('rename', fromFolder, id);
     ui.showStatus(err.message || '移动失败', true);
@@ -367,7 +374,7 @@ export async function duplicateDiagram(id, folder = '') {
     const data = await createDiagramFromCode(code, folder);
     await loadDiagram(data.id, data.folder || '');
     await loadDiagramList();
-    ui.showStatus(`已复制为 ${data.id}`);
+    ui.showStatus(`已复制为 ${data.id}`, { timestamp: data.updatedAt });
   } catch (err) {
     ui.showStatus(err.message || '复制失败', true);
   }
