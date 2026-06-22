@@ -478,9 +478,14 @@ body.mode-result .pane-resizer {
   display: flex;
 }
 
+.preview-loading:not(.preview-loading--visible) {
+  pointer-events: none;
+}
+
 .preview-loading--hiding {
   opacity: 0;
   transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
 .preview-loading-panel {

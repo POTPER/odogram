@@ -1,6 +1,4 @@
-import mermaid from 'mermaid';
-import elkLayouts from 'elk-layouts';
-import { cursorDarkTheme } from './theme.js';
+import { initMermaid } from './mermaid-init.js';
 import { createMermaidEditor } from './editor.js';
 import { applyLayoutFrontmatter, LAYOUT_MODES, parseLayoutFromCode } from './layout.js';
 import { initLayoutUI } from './layout-ui.js';
@@ -26,11 +24,7 @@ import {
 } from './status-log.js';
 import { initConsoleLogPanel, closeConsoleLogPanel } from './console-log-panel.js';
 
-mermaid.registerLayoutLoaders(elkLayouts);
-mermaid.initialize({
-  ...cursorDarkTheme,
-  startOnLoad: false,
-});
+initMermaid();
 
 const editorRoot = document.getElementById('editor-root');
 const statusEl = document.getElementById('status-message');

@@ -37,6 +37,9 @@ let escapeHtmlFn = (str) => str;
 let onRenderSuccessFn = () => {};
 let getSourceFn = () => '';
 let setSourceFn = () => {};
+let readOnly = false;
+let viewBoxReady = false;
+let readOnlyResizeObserver = null;
 
 export { isPreviewPanning };
 
@@ -54,9 +57,32 @@ function detachPreviewInteraction(svg) {
 }
 
 function attachPreviewInteraction(svgEl) {
+  if (readOnly) return;
   const handlers = getPreviewHandlers();
   attachLabelEditing(svgEl, preview, handlers);
   attachSelection(svgEl, preview, handlers, isPreviewPanning);
+}
+
+function applyViewBoxWhenReady(svgEl) {
+  const apply = () => {
+    if (preview.clientWidth < 1 || preview.clientHeight < 1) {
+      requestAnimationFrame(apply);
+      return;
+    }
+    setBaseViewBoxFromSvg(svgEl);
+    setMermaidZoomControlsEnabled(true);
+    viewBoxReady = true;
+  };
+  requestAnimationFrame(apply);
+}
+
+function setupReadOnlyViewportObserver() {
+  if (!readOnly || readOnlyResizeObserver || !preview) return;
+  readOnlyResizeObserver = new ResizeObserver(() => {
+    if (!viewBoxReady || preview.clientWidth < 1 || preview.clientHeight < 1) return;
+    fitPreview();
+  });
+  readOnlyResizeObserver.observe(preview);
 }
 
 function setOproductPreviewMode(enabled) {
@@ -84,7 +110,7 @@ function clearPreviewCanvas() {
 }
 
 async function renderPreview() {
-  const code = ctx.editor.getValue().trim();
+  const code = getSourceFn().trim();
   const seq = ++renderSeq;
   let settleRender;
   renderSettledPromise = new Promise((resolve) => {
@@ -112,8 +138,9 @@ async function renderPreview() {
         code,
         container: previewCanvas,
         escapeHtml: escapeHtmlFn,
-        getSource: getSourceFn,
-        setSource: setSourceFn,
+        ...(readOnly
+          ? {}
+          : { getSource: getSourceFn, setSource: setSourceFn }),
       });
 
       if (seq !== renderSeq) return;
@@ -138,11 +165,17 @@ async function renderPreview() {
 
       const svgEl = getPreviewSvg();
       if (svgEl) {
-        setBaseViewBoxFromSvg(svgEl);
-        attachPreviewInteraction(svgEl);
+        if (readOnly) {
+          viewBoxReady = false;
+          applyViewBoxWhenReady(svgEl);
+        } else {
+          setBaseViewBoxFromSvg(svgEl);
+          attachPreviewInteraction(svgEl);
+          setMermaidZoomControlsEnabled(true);
+        }
+      } else if (!readOnly) {
+        setMermaidZoomControlsEnabled(true);
       }
-
-      setMermaidZoomControlsEnabled(true);
       onRenderSuccessFn();
     } catch (err) {
       if (seq !== renderSeq) return;
@@ -204,12 +237,14 @@ export function initPreview({
   onRenderSuccess,
   getSource,
   setSource,
+  readOnly: readOnlyMode = false,
 } = {}) {
   showStatusFn = showStatus;
   escapeHtmlFn = escapeHtml;
   onRenderSuccessFn = onRenderSuccess || (() => {});
   getSourceFn = getSource || (() => '');
   setSourceFn = setSource || (() => {});
+  readOnly = readOnlyMode;
 
   initPreviewViewport({
     preview,
@@ -219,9 +254,10 @@ export function initPreview({
     btnZoomOut,
     btnZoomFit,
     btnZoomReset,
-    isLabelEditBlockingPan,
+    isLabelEditBlockingPan: readOnly ? undefined : isLabelEditBlockingPan,
   });
   initOproductViewSwitcher(previewCanvas);
+  setupReadOnlyViewportObserver();
 
   return {
     scheduleRender,

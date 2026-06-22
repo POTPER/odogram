@@ -23,6 +23,28 @@ function githubHeaders(token) {
   };
 }
 
+function githubPublicHeaders(env) {
+  const token = env?.GITHUB_PUBLIC_TOKEN?.trim();
+  if (token) return githubHeaders(token);
+  return GH_HEADERS;
+}
+
+export class GitHubRateLimitError extends Error {
+  constructor(message = 'GitHub API rate limit exceeded') {
+    super(message);
+    this.name = 'GitHubRateLimitError';
+    this.status = 503;
+  }
+}
+
+export class GitHubPublicFetchError extends Error {
+  constructor(message, status = 502) {
+    super(message);
+    this.name = 'GitHubPublicFetchError';
+    this.status = status;
+  }
+}
+
 function diagramKey(folder, id) {
   const f = normalizeFolder(folder);
   return f ? `${f}/${id}` : id;
@@ -278,33 +300,44 @@ export async function listDiagrams(token, username) {
   });
 }
 
-export async function fetchPublicDiagram(username, id, folder = '') {
+export async function fetchPublicDiagram(username, id, folder = '', env = {}) {
   const normalizedFolder = normalizeFolder(folder);
-  let page = 1;
+  const q = [
+    `repo:${username}/${REPO_NAME}`,
+    'is:issue',
+    'is:open',
+    `label:"${DIAGRAM_LABEL}"`,
+    `"${id.replace(/"/g, '')}"`,
+    'in:title',
+  ].join(' ');
 
-  while (true) {
-    const res = await fetch(
-      `https://api.github.com/repos/${username}/${REPO_NAME}/issues?labels=${encodeURIComponent(DIAGRAM_LABEL)}&state=open&per_page=100&page=${page}`,
-      { headers: GH_HEADERS },
-    );
+  const res = await fetch(
+    `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&per_page=20`,
+    { headers: githubPublicHeaders(env) },
+  );
 
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      throw new Error(`Failed to fetch public diagram: ${res.status}`);
+  if (res.status === 404) return null;
+  if (res.status === 422) {
+    const data = await res.json().catch(() => ({}));
+    const invalidSearch = data.errors?.some((e) => e.code === 'invalid');
+    if (invalidSearch) return null;
+    throw new GitHubPublicFetchError(`Failed to fetch public diagram: ${res.status}`, res.status);
+  }
+  if (res.status === 403 || res.status === 429) {
+    throw new GitHubRateLimitError(`GitHub API rate limit: ${res.status}`);
+  }
+  if (!res.ok) {
+    throw new GitHubPublicFetchError(`Failed to fetch public diagram: ${res.status}`, res.status);
+  }
+
+  const data = await res.json();
+  for (const issue of data.items ?? []) {
+    if (issue.pull_request) continue;
+    if (issue.title !== id) continue;
+    const { folder: issueFolder, content } = parseFrontmatter(issue.body ?? '');
+    if ((issueFolder || '') === normalizedFolder) {
+      return content;
     }
-
-    const batch = await res.json();
-    for (const issue of batch) {
-      if (issue.pull_request) continue;
-      if (issue.title !== id) continue;
-      const { folder: issueFolder, content } = parseFrontmatter(issue.body ?? '');
-      if ((issueFolder || '') === normalizedFolder) {
-        return content;
-      }
-    }
-
-    if (batch.length < 100) break;
-    page += 1;
   }
 
   return null;

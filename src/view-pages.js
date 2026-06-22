@@ -21,12 +21,20 @@ export function toBase64Url(bytes) {
 }
 
 export function buildViewCsp(nonce, format) {
+  const isOproduct = format === 'oproduct';
+  const styleDirectives = isOproduct
+    ? [`style-src 'self' 'nonce-${nonce}'`]
+    : [
+        `style-src-elem 'self' 'nonce-${nonce}'`,
+        `style-src-attr 'unsafe-inline'`,
+      ];
+
   return [
     "default-src 'self'",
-    format === 'oproduct'
+    isOproduct
       ? `script-src 'self' 'nonce-${nonce}'`
       : `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
-    `style-src 'self' 'nonce-${nonce}'`,
+    ...styleDirectives,
     "img-src 'self' data:",
     "connect-src 'self'",
     "font-src 'self'",
@@ -39,7 +47,7 @@ export function buildViewCsp(nonce, format) {
 
 const VIEW_LOADING_HTML = `<div class="preview-loading" role="status" aria-live="polite">
   <div class="preview-loading-panel">
-    <div class="preview-loading-bar"><div class="preview-loading-fill" style="width:15%"></div></div>
+    <div class="preview-loading-bar"><div class="preview-loading-fill preview-loading-fill--initial"></div></div>
     <span class="preview-loading-label">Loading diagram…</span>
   </div>
 </div>`;
@@ -55,7 +63,8 @@ const VIEW_LOADING_CSS = `
       background: #1e1e1e;
     }
     .preview-loading--visible { display: flex; }
-    .preview-loading--hiding { opacity: 0; transition: opacity 0.2s ease; }
+    .preview-loading:not(.preview-loading--visible) { pointer-events: none; }
+    .preview-loading--hiding { opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
     .preview-loading-panel {
       width: min(280px, calc(100% - 48px));
       display: flex;
@@ -74,6 +83,9 @@ const VIEW_LOADING_CSS = `
       border-radius: inherit;
       background: #007acc;
     }
+    .preview-loading-fill--initial {
+      width: 15%;
+    }
     .preview-loading-label {
       font-size: 12px;
       color: #858585;
@@ -88,11 +100,14 @@ export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
   const codeJson = JSON.stringify(code).replace(/</g, '\\u003c');
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="view-page">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${safeId} — odogram</title>
+  <link rel="stylesheet" href="/styles/view-tokens.css">
+  <link rel="stylesheet" href="/styles/view-preview.css">
+  <link rel="stylesheet" href="/styles/mermaid-sequence.css">
   <script type="importmap" nonce="${nonce}">
   {
     "imports": {
@@ -107,12 +122,35 @@ export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
   </script>
   <style nonce="${nonce}">
     * { box-sizing: border-box; }
-    body {
+    html.view-page,
+    body.view-page {
       margin: 0;
-      min-height: 100vh;
+      height: 100%;
+      overflow: hidden;
+    }
+    body.view-page {
+      display: flex;
+      flex-direction: column;
       background: #1e1e1e;
       color: #cccccc;
       font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #preview.preview-viewport {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+      touch-action: none;
+      background: #1e1e1e;
+    }
+    #preview-canvas {
+      position: absolute;
+      inset: 0;
+    }
+    #preview-canvas svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
     header {
       display: flex;
@@ -121,6 +159,7 @@ export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
       padding: 10px 16px;
       background: #252526;
       border-bottom: 1px solid #3c3c3c;
+      flex-shrink: 0;
     }
     header a {
       color: #007acc;
@@ -128,28 +167,25 @@ export function viewPageHtml({ username, id, folder, code, origin, nonce }) {
     }
     header a:hover { text-decoration: underline; }
     .meta { color: #858585; font-size: 13px; }
-    #preview {
-      position: relative;
-      flex: 1;
-      padding: 32px;
-      display: flex;
-      justify-content: center;
-      overflow: auto;
-      min-height: calc(100vh - 41px);
-    }
-    #preview-canvas { width: 100%; }
-    #preview-canvas svg { max-width: 100%; height: auto; }
-    .error { color: #f48771; padding: 24px; font-family: monospace; white-space: pre-wrap; }
     ${VIEW_LOADING_CSS}
   </style>
 </head>
-<body>
+<body class="view-page">
   <header>
     <a href="/">odogram</a>
     <span class="meta">${safeUser} / ${displayPath}</span>
     <a href="${escapeHtml(getShareUrl(origin, username, id, folder))}">Share</a>
   </header>
-  <div id="preview">${VIEW_LOADING_HTML}<div id="preview-canvas"></div></div>
+  <div class="view-preview-toolbar">
+    <div class="preview-controls">
+      <button type="button" id="btn-zoom-out" title="Zoom out" disabled>−</button>
+      <span id="zoom-label" class="zoom-label">100%</span>
+      <button type="button" id="btn-zoom-in" title="Zoom in" disabled>+</button>
+      <button type="button" id="btn-zoom-fit" title="Fit to panel" disabled>Fit</button>
+      <button type="button" id="btn-zoom-reset" title="100%" disabled>1:1</button>
+    </div>
+  </div>
+  <div id="preview" class="preview-viewport">${VIEW_LOADING_HTML}<div id="preview-canvas"></div></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
   <script type="module" src="/view-mermaid.js" nonce="${nonce}" crossorigin="anonymous"></script>
 </body>
@@ -204,6 +240,83 @@ export function viewOproductPageHtml({ username, id, folder, code, origin, nonce
   <div id="preview">${VIEW_LOADING_HTML}<div id="preview-canvas"></div></div>
   <script id="diagram-data" type="application/json">${codeJson}</script>
   <script type="module" src="/view-oproduct.js" nonce="${nonce}" crossorigin="anonymous"></script>
+</body>
+</html>`;
+}
+
+export function viewErrorPageHtml({ title, message, statusHint = '' }) {
+  const safeTitle = escapeHtml(title);
+  const safeMessage = escapeHtml(message);
+  const safeHint = statusHint ? escapeHtml(statusHint) : '';
+
+  return `<!DOCTYPE html>
+<html lang="en" class="view-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeTitle} — odogram</title>
+  <style>
+    * { box-sizing: border-box; }
+    html.view-page, body.view-page {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #1e1e1e;
+      color: #cccccc;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    body.view-page {
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #252526;
+      border-bottom: 1px solid #3c3c3c;
+      flex-shrink: 0;
+    }
+    header a { color: #007acc; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    .view-error {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .view-error h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .view-error p {
+      margin: 0;
+      max-width: 420px;
+      line-height: 1.5;
+      color: #cccccc;
+    }
+    .view-error .meta {
+      color: #858585;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body class="view-page">
+  <header>
+    <a href="/">odogram</a>
+  </header>
+  <main class="view-error">
+    <h1>${safeTitle}</h1>
+    <p>${safeMessage}</p>
+    ${safeHint ? `<p class="meta">${safeHint}</p>` : ''}
+    <p><a href="/">返回 odogram</a></p>
+  </main>
 </body>
 </html>`;
 }

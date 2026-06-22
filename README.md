@@ -72,12 +72,21 @@ npx wrangler secret put GITHUB_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 ```
 
+Optional — improves share page reliability (GitHub Search API rate limits):
+
+```bash
+npx wrangler secret put GITHUB_PUBLIC_TOKEN
+```
+
+Use a fine-grained or classic PAT with **public_repo** read access (no write scopes required). The token is used server-side to fetch public diagrams for `/view/...` pages.
+
 For **local development**, create `.dev.vars` in the project root (do not commit):
 
 ```env
 GITHUB_CLIENT_ID=your_client_id
 GITHUB_CLIENT_SECRET=your_client_secret
 SESSION_SECRET=your_random_secret
+GITHUB_PUBLIC_TOKEN=ghp_...optional
 ```
 
 ### 4. Run locally

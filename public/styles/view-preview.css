@@ -1,0 +1,68 @@
+.view-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preview-controls button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  min-width: 26px;
+  padding: 3px 7px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.preview-controls button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+.preview-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-label {
+  min-width: 40px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+#preview.preview-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.view-page .error {
+  color: #f48771;
+  padding: 24px;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+.preview-error {
+  position: absolute;
+  inset: 24px;
+  color: var(--error-text, #f48771);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow: auto;
+}

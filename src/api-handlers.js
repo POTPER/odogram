@@ -5,6 +5,8 @@ import {
   getGitHubFileUrl,
   getShareUrl,
   GitHubError,
+  GitHubPublicFetchError,
+  GitHubRateLimitError,
   listDiagrams,
   loadDiagramDetail,
   moveDiagram,
@@ -18,6 +20,7 @@ import { parseFrontmatter, validateTags } from './frontmatter.js';
 import {
   buildViewCsp,
   toBase64Url,
+  viewErrorPageHtml,
   viewOproductPageHtml,
   viewPageHtml,
 } from './view-pages.js';
@@ -368,6 +371,13 @@ export async function handleRenameFolder(request, env, session) {
   }
 }
 
+function viewErrorResponse({ status, title, message, statusHint = '' }) {
+  return new Response(viewErrorPageHtml({ title, message, statusHint }), {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
 export async function handleView(request, env) {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
@@ -388,18 +398,38 @@ export async function handleView(request, env) {
     return new Response('Not found', { status: 404 });
   }
 
-  if (!ID_PATTERN.test(id) || !/^[a-zA-Z0-9-]+$/.test(username)) {
-    return new Response('Invalid path', { status: 400 });
+  if (!/^[a-zA-Z0-9-]+$/.test(username)) {
+    return viewErrorResponse({
+      status: 400,
+      title: '链接格式无效',
+      message: '分享链接中的用户名格式不正确。',
+    });
   }
 
   if (folder && !ID_PATTERN.test(folder)) {
-    return new Response('Invalid path', { status: 400 });
+    return viewErrorResponse({
+      status: 400,
+      title: '链接格式无效',
+      message: '文件夹名含非法字符（仅支持中文、字母、数字、下划线、连字符）。请在编辑器中重命名文件夹后重新分享。',
+    });
+  }
+
+  if (!ID_PATTERN.test(id)) {
+    return viewErrorResponse({
+      status: 400,
+      title: '链接格式无效',
+      message: '分享链接中的 diagram 名称格式不正确。',
+    });
   }
 
   try {
-    const code = await fetchPublicDiagram(username, id, folder);
+    const code = await fetchPublicDiagram(username, id, folder, env);
     if (code === null) {
-      return new Response('Diagram not found', { status: 404 });
+      return viewErrorResponse({
+        status: 404,
+        title: 'Diagram not found',
+        message: '找不到该 diagram，可能已被删除或链接有误。',
+      });
     }
 
     const nonce = toBase64Url(crypto.getRandomValues(new Uint8Array(16)));
@@ -424,6 +454,25 @@ export async function handleView(request, env) {
     });
   } catch (err) {
     console.error('handleView failed:', err);
-    return new Response('Failed to load diagram', { status: 500 });
+    if (err instanceof GitHubRateLimitError) {
+      return viewErrorResponse({
+        status: 503,
+        title: '暂时无法加载',
+        message: 'GitHub API 限流，请稍后重试。',
+        statusHint: '建议在 Worker 中配置 GITHUB_PUBLIC_TOKEN 以提高限额。',
+      });
+    }
+    if (err instanceof GitHubPublicFetchError) {
+      return viewErrorResponse({
+        status: 502,
+        title: '加载失败',
+        message: '无法从 GitHub 获取 diagram，请稍后重试。',
+      });
+    }
+    return viewErrorResponse({
+      status: 502,
+      title: '加载失败',
+      message: '无法加载 diagram，请稍后重试。',
+    });
   }
 }

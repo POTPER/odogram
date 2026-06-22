@@ -1,0 +1,26 @@
+/* Sequence diagram dark overrides — class-based only to avoid breaking markers */
+
+#preview-canvas svg rect.rect,
+#preview-canvas svg g.rect > rect {
+  fill: rgba(45, 45, 45, 0.85) !important;
+  stroke: #3c3c3c !important;
+}
+
+#preview-canvas svg rect.note,
+#preview-canvas svg .note rect {
+  fill: #3d3929 !important;
+  stroke: #555555 !important;
+}
+
+#preview-canvas svg rect.labelBox,
+#preview-canvas svg .labelBox rect {
+  fill: #3d3929 !important;
+  stroke: #555555 !important;
+}
+
+#preview-canvas svg .noteText,
+#preview-canvas svg .messageText,
+#preview-canvas svg .loopText,
+#preview-canvas svg .labelText {
+  fill: #cccccc !important;
+}
