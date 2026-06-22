@@ -13,6 +13,7 @@ let viewButtons = [];
 let viewButtonsBound = false;
 let onViewChangeFn = null;
 let sourceHandlers = null;
+let readOnlyMode = false;
 
 function dispatchFormatChange(format) {
   window.dispatchEvent(new CustomEvent('odogram:format-change', { detail: { format } }));
@@ -34,7 +35,9 @@ function setViewSwitcherVisible(visible) {
 }
 
 function getRoadmapRenderOptions() {
-  if (!sourceHandlers) return {};
+  if (readOnlyMode) {
+    return { editable: false };
+  }
 
   return {
     editable: true,
@@ -103,6 +106,7 @@ export function initOproductViewSwitcher(containerEl) {
 export function detachOproductPreview() {
   activeDoc = null;
   sourceHandlers = null;
+  readOnlyMode = false;
   setViewSwitcherVisible(false);
   dispatchFormatChange('mermaid');
 }
@@ -114,10 +118,12 @@ export function renderOproductPreview({
   onViewChange,
   getSource,
   setSource,
+  readOnly = false,
 }) {
   activeContainer = container;
   onViewChangeFn = onViewChange || null;
   sourceHandlers = getSource && setSource ? { getSource, setSource } : null;
+  readOnlyMode = readOnly || !sourceHandlers;
 
   const parsed = parseOproductDocument(code);
 

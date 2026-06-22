@@ -18,7 +18,7 @@ initPreviewLoadingFromDom(previewHost);
 setPreviewLoadingPhase('render');
 
 initOproductViewSwitcher(container);
-renderOproductPreview({ code, container, escapeHtml });
+renderOproductPreview({ code, container, escapeHtml, readOnly: true });
 
 endPreviewLoading();
 disableContextMenu();

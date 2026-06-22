@@ -37,12 +37,14 @@ export function renderRoadmapView(doc, container, options = {}) {
     const head = document.createElement('div');
     head.className = 'oproduct-milestone-head';
 
-    const handle = document.createElement('span');
-    handle.className = 'oproduct-drag-handle oproduct-milestone-handle';
-    handle.draggable = true;
-    handle.setAttribute('aria-label', 'Drag milestone');
-    handle.textContent = '⋮⋮';
-    head.appendChild(handle);
+    if (!isReadonly) {
+      const handle = document.createElement('span');
+      handle.className = 'oproduct-drag-handle oproduct-milestone-handle';
+      handle.draggable = true;
+      handle.setAttribute('aria-label', 'Drag milestone');
+      handle.textContent = '⋮⋮';
+      head.appendChild(handle);
+    }
 
     const title = document.createElement('h3');
     title.className = 'oproduct-milestone-title';
@@ -65,22 +67,31 @@ export function renderRoadmapView(doc, container, options = {}) {
         li.className = `oproduct-deliver status-${deliver.status}`;
         li.dataset.milestoneIndex = String(milestoneIndex);
         li.dataset.deliverIndex = String(deliverIndex);
-        li.draggable = true;
-        li.innerHTML = `
+        if (!isReadonly) {
+          li.draggable = true;
+          li.innerHTML = `
           <span class="oproduct-drag-handle oproduct-deliver-handle" aria-hidden="true">⋮⋮</span>
           <span class="oproduct-status-pill">${statusLabel(deliver.status)}</span>
           <span class="oproduct-deliver-text">${escapeHtml(deliver.text)}</span>
         `;
+        } else {
+          li.innerHTML = `
+          <span class="oproduct-status-pill">${statusLabel(deliver.status)}</span>
+          <span class="oproduct-deliver-text">${escapeHtml(deliver.text)}</span>
+        `;
+        }
         list.appendChild(li);
       });
       block.appendChild(list);
     }
 
-    const appendZone = document.createElement('div');
-    appendZone.className = 'oproduct-deliver-append';
-    appendZone.dataset.milestoneIndex = String(milestoneIndex);
-    appendZone.dataset.dropKind = 'append';
-    block.appendChild(appendZone);
+    if (!isReadonly) {
+      const appendZone = document.createElement('div');
+      appendZone.className = 'oproduct-deliver-append';
+      appendZone.dataset.milestoneIndex = String(milestoneIndex);
+      appendZone.dataset.dropKind = 'append';
+      block.appendChild(appendZone);
+    }
 
     timeline.appendChild(block);
   });

@@ -1,5 +1,6 @@
 :root {
   --accent: #007acc;
+  --success: #2da44e;
   --bg: #1e1e1e;
   --surface: #252526;
   --surface-raised: #2d2d2d;
@@ -7,5 +8,12 @@
   --border: #3c3c3c;
   --text: #cccccc;
   --text-muted: #858585;
+  --active-bg: #094771;
+  --error-text: #f48771;
+  --radius: 6px;
   --radius-sm: 4px;
+}
+
+[hidden] {
+  display: none !important;
 }

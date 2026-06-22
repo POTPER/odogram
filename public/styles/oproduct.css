@@ -1,4 +1,4 @@
-﻿.oproduct-view-switch {
+.oproduct-view-switch {
   display: inline-flex;
   align-items: center;
   gap: 0;
@@ -237,6 +237,15 @@ body.is-oproduct .layout-select-wrap {
 
 .oproduct-step-touchpoint {
   color: var(--text-muted);
+}
+
+.oproduct-roadmap-readonly .oproduct-drag-handle,
+.oproduct-roadmap-readonly .oproduct-deliver-append {
+  display: none;
+}
+
+.oproduct-roadmap-readonly .oproduct-deliver {
+  cursor: default;
 }
 
 @media (max-width: 768px) {

@@ -66,3 +66,31 @@
   white-space: pre-wrap;
   overflow: auto;
 }
+
+.mode-btn {
+  appearance: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.mode-btn:last-child {
+  border-right: none;
+}
+
+.mode-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.mode-btn.active {
+  color: var(--text);
+  background: var(--active-bg);
+}

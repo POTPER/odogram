@@ -22,12 +22,10 @@ export function toBase64Url(bytes) {
 
 export function buildViewCsp(nonce, format) {
   const isOproduct = format === 'oproduct';
-  const styleDirectives = isOproduct
-    ? [`style-src 'self' 'nonce-${nonce}'`]
-    : [
-        `style-src-elem 'self' 'nonce-${nonce}'`,
-        `style-src-attr 'unsafe-inline'`,
-      ];
+  const styleDirectives = [
+    `style-src-elem 'self' 'nonce-${nonce}'`,
+    `style-src-attr 'unsafe-inline'`,
+  ];
 
   return [
     "default-src 'self'",
@@ -205,7 +203,9 @@ export function viewOproductPageHtml({ username, id, folder, code, origin, nonce
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${safeId} — odogram</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/styles/view-tokens.css">
+  <link rel="stylesheet" href="/styles/view-preview.css">
+  <link rel="stylesheet" href="/styles/oproduct.css">
   <style nonce="${nonce}">
     body { margin: 0; min-height: 100vh; background: #1e1e1e; color: #cccccc; font-family: 'Segoe UI', system-ui, sans-serif; }
     header {
@@ -221,6 +221,7 @@ export function viewOproductPageHtml({ username, id, folder, code, origin, nonce
     }
     #preview { position: relative; flex: 1; overflow: auto; padding: 16px; min-height: 0; }
     #preview-canvas { position: relative; inset: auto; min-height: 100%; }
+    ${VIEW_LOADING_CSS}
   </style>
 </head>
 <body>
