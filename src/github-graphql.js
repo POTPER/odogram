@@ -37,12 +37,16 @@ export async function fetchAllDiagrams(token, owner, repo, { states = ['OPEN'] }
     if (!issues) break;
 
     for (const node of issues.nodes) {
-      const { folder, content } = parseFrontmatter(node.body ?? '');
+      const parsed = parseFrontmatter(node.body ?? '');
       diagrams.push({
         number: node.number,
         id: node.title,
-        folder,
-        content,
+        folder: parsed.folder,
+        tags: parsed.tags,
+        format: parsed.format,
+        view: parsed.view,
+        title: parsed.title,
+        content: parsed.content,
         state: node.state === 'OPEN' ? 'open' : 'closed',
         updatedAt: node.updatedAt,
       });

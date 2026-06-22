@@ -25,11 +25,12 @@ import {
   setPreviewLoadingPhase,
 } from '../preview-loading.js';
 
-export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl, number, updatedAt }, { deferRender = false } = {}) {
+export function openDiagramInEditor({ id, folder = '', code, shareUrl, githubUrl, number, updatedAt, tags }, { deferRender = false } = {}) {
   ctx.currentId = id;
   ctx.currentFolder = folder || '';
   ctx.currentNumber = number ?? null;
   ctx.currentUpdatedAt = updatedAt ?? null;
+  ctx.currentTags = Array.isArray(tags) ? tags : [];
   ctx.currentGuestExampleId = null;
   setSuppressAutoSave(true);
   clearAutoSaveTimer();
@@ -122,6 +123,7 @@ export async function saveDiagramWithId(id, { quiet = false, folder, code } = {}
       id: id || undefined,
       folder: targetFolder || undefined,
       code: payloadCode,
+      tags: ctx.currentTags || [],
     };
     if (ctx.currentUpdatedAt) {
       body.expectedUpdatedAt = ctx.currentUpdatedAt;
@@ -199,6 +201,7 @@ export async function newDiagram() {
   ctx.currentId = null;
   ctx.currentNumber = null;
   ctx.currentUpdatedAt = null;
+  ctx.currentTags = [];
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   ui.setQueryDiagram(ctx.currentFolder, null);

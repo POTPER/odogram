@@ -7,6 +7,8 @@ import { initLayoutUI } from './layout-ui.js';
 import { ctx } from './app-context.js';
 import { initPreview } from './preview.js';
 import { initNameDialog } from './name-dialog.js';
+import { initFolderDialog } from './folder-dialog.js';
+import { initTagsDialog } from './tags-dialog.js';
 import { initLoginDialog, closeLoginDialog } from './login-dialog.js';
 import { initAiDialog, closeAiDialog } from './ai-dialog.js';
 import { initAssetsPanel, closeAssetsPanel } from './assets-panel.js';
@@ -189,6 +191,8 @@ async function init() {
   });
   scheduleRender = previewApi.scheduleRender;
   initNameDialog();
+  initFolderDialog();
+  initTagsDialog();
   initLoginDialog();
   initAiDialog();
   initAssetsPanel();

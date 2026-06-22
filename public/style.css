@@ -1,5 +1,6 @@
 @import url('./styles/base.css');
 @import url('./styles/sidebar.css');
+@import url('./styles/folder-tags-dialog.css');
 @import url('./styles/workbench.css');
 @import url('./styles/status-bar.css');
 @import url('./styles/view-layout.css');

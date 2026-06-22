@@ -32,10 +32,32 @@ function toDiagramEntry(username, item) {
   return {
     id: item.id,
     folder: item.folder || '',
+    tags: item.tags || [],
     number: item.number,
     updatedAt: item.updatedAt,
     url: getGitHubIssueUrl(username, item.number),
   };
+}
+
+function metaFromItem(item) {
+  return {
+    folder: item.folder || '',
+    tags: item.tags || [],
+    format: item.format || 'mermaid',
+    view: item.view || 'tree',
+    title: item.title || '',
+  };
+}
+
+function buildIssueBody(item, folder, content, tags) {
+  const meta = metaFromItem(item);
+  return serializeFrontmatter({
+    folder,
+    tags: tags !== undefined ? tags : meta.tags,
+    format: meta.format,
+    view: meta.view,
+    title: meta.title,
+  }, content);
 }
 
 export function getGitHubIssueUrl(username, number) {
@@ -94,13 +116,13 @@ function findDiagramByKey(diagrams, folder, id) {
   return diagrams.find((d) => d.id === id && (d.folder || '') === f) ?? null;
 }
 
-export async function saveDiagram(token, username, id, code, folder = '', expectedUpdatedAt) {
+export async function saveDiagram(token, username, id, code, folder = '', expectedUpdatedAt, tags = undefined) {
   await ensureRepo(token, username);
 
   const normalizedFolder = normalizeFolder(folder);
   const diagrams = await fetchOpenDiagrams(token, username);
   const existing = findDiagramByKey(diagrams, normalizedFolder, id);
-  const body = serializeFrontmatter(normalizedFolder, code);
+  const body = buildIssueBody(existing ?? {}, normalizedFolder, code, tags);
 
   if (existing) {
     const issue = await updateIssue(
@@ -141,6 +163,7 @@ export async function loadDiagramDetail(token, username, id, folder = '') {
   return {
     id: match.id,
     folder: match.folder || '',
+    tags: match.tags || [],
     number: match.number,
     updatedAt: match.updatedAt,
     code: match.content ?? '',
@@ -201,7 +224,7 @@ export async function moveDiagram(token, username, id, fromFolder = '', toFolder
     throw new Error('Diagram id already exists');
   }
 
-  const body = serializeFrontmatter(normalizedTo, existing.content ?? '');
+  const body = buildIssueBody(existing, normalizedTo, existing.content ?? '');
   const issue = await updateIssue(token, username, REPO_NAME, existing.number, { body });
 
   return {
@@ -209,6 +232,40 @@ export async function moveDiagram(token, username, id, fromFolder = '', toFolder
     folder: normalizedTo,
     number: issue.number,
     updatedAt: issue.updated_at,
+  };
+}
+
+export async function renameFolder(token, username, oldFolder, newFolder) {
+  const normalizedOld = normalizeFolder(oldFolder);
+  const normalizedNew = normalizeFolder(newFolder);
+
+  if (!normalizedOld) {
+    throw new Error('Cannot rename ungrouped');
+  }
+  if (normalizedOld === normalizedNew) {
+    throw new Error('No change');
+  }
+
+  const diagrams = await fetchOpenDiagrams(token, username);
+  const inOld = diagrams.filter((d) => (d.folder || '') === normalizedOld);
+  if (inOld.length === 0) {
+    throw new Error('Not found');
+  }
+
+  const hasNew = diagrams.some((d) => (d.folder || '') === normalizedNew);
+  if (hasNew) {
+    throw new Error('Folder already exists');
+  }
+
+  for (const item of inOld) {
+    const body = buildIssueBody(item, normalizedNew, item.content ?? '');
+    await updateIssue(token, username, REPO_NAME, item.number, { body });
+  }
+
+  return {
+    oldFolder: normalizedOld,
+    newFolder: normalizedNew,
+    count: inOld.length,
   };
 }
 

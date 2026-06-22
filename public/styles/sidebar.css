@@ -41,8 +41,66 @@ body.sidebar-open .sidebar.drawer-ready {
   transform: translateX(0);
 }
 
-body.is-guest-examples .sidebar-new-btn {
+body.is-guest-examples .sidebar-new-btn,
+body.is-guest-examples .sidebar-folder-btn,
+body.is-guest-examples .diagram-tag-filter,
+body.is-logged-out .sidebar-folder-btn {
   display: none;
+}
+
+.sidebar-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-folder-btn,
+.sidebar-new-btn {
+  min-width: 28px;
+  height: 28px;
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.sidebar-folder-btn {
+  font-size: 14px;
+}
+
+.sidebar-folder-btn:hover,
+.sidebar-new-btn:hover {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--accent);
+}
+
+.diagram-tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tag-filter-chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.tag-filter-chip:hover,
+.tag-filter-chip.active {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--accent);
 }
 
 .sidebar-header {
@@ -63,20 +121,6 @@ body.is-guest-examples .sidebar-new-btn {
   letter-spacing: 0.05em;
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-.sidebar-new-btn {
-  min-width: 28px;
-  height: 28px;
-  font-size: 20px;
-  font-weight: 400;
-  color: var(--accent);
-}
-
-.sidebar-new-btn:hover {
-  color: #fff;
-  background: var(--primary);
-  border-color: var(--accent);
 }
 
 .diagram-list {
@@ -171,7 +215,7 @@ body.is-guest-examples .sidebar-new-btn {
 
 .diagram-list-item .diagram-item-btn {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   flex: 1;
   min-width: 0;
@@ -185,6 +229,31 @@ body.is-guest-examples .sidebar-new-btn {
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: background 0.15s;
+}
+
+.diagram-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.diagram-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.diagram-tag-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .context-menu {

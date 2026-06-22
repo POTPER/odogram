@@ -12,6 +12,7 @@ export const ctx = {
   diagramIds: new Set(),
   diagramFolders: [],
   currentGuestExampleId: null,
+  currentTags: [],
 };
 
 export const EXAMPLE_FOLDER = '示例';

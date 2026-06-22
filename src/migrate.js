@@ -128,7 +128,7 @@ export async function migrateIfNeeded(session, kv) {
     const code = await loadLegacyFile(session.token, session.username, folder, id);
     if (code === null) continue;
 
-    const body = serializeFrontmatter(folder, code);
+    const body = serializeFrontmatter({ folder }, code);
     await createIssue(session.token, session.username, REPO_NAME, {
       title: id,
       body,

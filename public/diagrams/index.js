@@ -5,6 +5,7 @@ import {
 } from './autosave.js';
 import * as crud from './crud.js';
 import * as examples from './examples.js';
+import * as folders from './folders.js';
 import { initContextMenu, loadDiagramList, loadGuestExampleList } from './sidebar.js';
 import { isCurrentDiagram } from './utils.js';
 import { wireDiagramApi, ui } from './registry.js';
@@ -19,6 +20,8 @@ wireDiagramApi({
   duplicateDiagram: crud.duplicateDiagram,
   removeDiagram: crud.removeDiagram,
   openDiagramInEditor: crud.openDiagramInEditor,
+  newDiagramInFolder: folders.newDiagramInFolder,
+  renameFolder: folders.renameFolder,
   loadExample: examples.loadExample,
   loadGuestExample: examples.loadGuestExample,
   isCurrentDiagram,

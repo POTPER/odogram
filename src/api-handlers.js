@@ -10,10 +10,11 @@ import {
   moveDiagram,
   normalizeFolder,
   renameDiagram,
+  renameFolder,
   saveDiagram,
 } from './github.js';
 import { migrateIfNeeded } from './migrate.js';
-import { parseFrontmatter } from './frontmatter.js';
+import { parseFrontmatter, validateTags } from './frontmatter.js';
 import {
   buildViewCsp,
   toBase64Url,
@@ -47,7 +48,7 @@ export async function handleSave(request, env, session) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { code, expectedUpdatedAt } = body;
+  const { code, expectedUpdatedAt, tags: tagsBody } = body;
   let { id, folder } = body;
 
   if (!code || typeof code !== 'string') {
@@ -68,6 +69,18 @@ export async function handleSave(request, env, session) {
     return Response.json({ error: 'Invalid id format' }, { status: 400 });
   }
 
+  let tags;
+  if (tagsBody !== undefined) {
+    if (!Array.isArray(tagsBody) || tagsBody.some((tag) => typeof tag !== 'string')) {
+      return Response.json({ error: 'Invalid tags format' }, { status: 400 });
+    }
+    const tagError = validateTags(tagsBody);
+    if (tagError) {
+      return Response.json({ error: tagError }, { status: 400 });
+    }
+    tags = tagsBody;
+  }
+
   try {
     const saved = await saveDiagram(
       session.token,
@@ -76,6 +89,7 @@ export async function handleSave(request, env, session) {
       code,
       folder,
       expectedUpdatedAt,
+      tags,
     );
     const origin = new URL(request.url).origin;
     return Response.json({
@@ -121,6 +135,7 @@ export async function handleLoad(request, env, session) {
       id: detail.id,
       folder: detail.folder,
       code: detail.code,
+      tags: detail.tags || [],
       number: detail.number,
       updatedAt: detail.updatedAt,
       shareUrl: getShareUrl(origin, session.username, detail.id, detail.folder),
@@ -289,6 +304,61 @@ export async function handleMove(request, env, session) {
       return Response.json({ error: message }, { status: 409 });
     }
     if (message === 'Not found') {
+      return Response.json({ error: message }, { status: 404 });
+    }
+    if (message === 'No change') {
+      return Response.json({ error: message }, { status: 400 });
+    }
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function handleRenameFolder(request, env, session) {
+  const denied = requireSession(session);
+  if (denied) return denied;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { oldFolder, newFolder } = body;
+
+  const oldResult = parseFolderParam(oldFolder ?? '');
+  if (oldResult.error || !oldResult.folder) {
+    return Response.json({ error: oldResult.error || 'Invalid old folder' }, { status: 400 });
+  }
+
+  const newResult = parseFolderParam(newFolder ?? '');
+  if (newResult.error || !newResult.folder) {
+    return Response.json({ error: newResult.error || 'Invalid new folder' }, { status: 400 });
+  }
+
+  if (oldResult.folder === newResult.folder) {
+    return Response.json({ error: 'No change' }, { status: 400 });
+  }
+
+  try {
+    const renamed = await renameFolder(
+      session.token,
+      session.username,
+      oldResult.folder,
+      newResult.folder,
+    );
+    return Response.json({
+      ok: true,
+      oldFolder: renamed.oldFolder,
+      newFolder: renamed.newFolder,
+      count: renamed.count,
+    });
+  } catch (err) {
+    const message = err.message || 'Rename folder failed';
+    if (message === 'Folder already exists') {
+      return Response.json({ error: message }, { status: 409 });
+    }
+    if (message === 'Not found' || message === 'Cannot rename ungrouped') {
       return Response.json({ error: message }, { status: 404 });
     }
     if (message === 'No change') {

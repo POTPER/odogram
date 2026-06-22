@@ -12,6 +12,7 @@ import {
   handleLoad,
   handleMove,
   handleRename,
+  handleRenameFolder,
   handleSave,
   handleView,
 } from './api-handlers.js';
@@ -70,6 +71,10 @@ export default {
 
     if (pathname === '/api/move' && request.method === 'POST') {
       return handleMove(request, env, session);
+    }
+
+    if (pathname === '/api/rename-folder' && request.method === 'POST') {
+      return handleRenameFolder(request, env, session);
     }
 
     if (pathname.startsWith('/view/') && request.method === 'GET') {

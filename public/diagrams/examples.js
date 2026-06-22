@@ -30,6 +30,7 @@ async function applyStaticSource(text, { guestExampleId = null } = {}) {
   ctx.currentNumber = null;
   ctx.currentUpdatedAt = null;
   ctx.currentGuestExampleId = guestExampleId;
+  ctx.currentTags = [];
   ctx.lastShareUrl = '';
   ctx.lastGithubUrl = '';
   ui.setQueryDiagram('', null);
